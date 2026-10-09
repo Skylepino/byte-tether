@@ -7,10 +7,14 @@
     a fixed 4-line instruction to read AGENTS.md and follow the skill; all real
     customization stays in the config, so you never edit a prompt string.
 
+    Safe to re-run: if an automation of the same name is already pointed at this
+    repo it is updated in place, not duplicated. Pass -Recreate to force a new one.
+
     Run this after cloning on a new machine, or after changing the schedule.
 .EXAMPLE
     powershell -File tools\install-automation.ps1
-    powershell -File tools\install-automation.ps1 -Name "my-digest"
+    powershell -File tools\install-automation.ps1 -Recreate
+    powershell -File tools\install-automation.ps1 -Disabled   # install paused
 #>
 
 [CmdletBinding()]
@@ -34,6 +38,46 @@ $prompt = @(
     'config/digest.json is authoritative - it decides categories, counts, sources and the dedup window.',
     'Never list an item you did not actually fetch from a live source.'
 ) -join ' '
+
+# Reuse an existing automation when one is already pointed at this repo, so
+# re-running this after a config change updates it instead of creating a second
+# one that fires at the same hour every day. -Recreate opts out.
+if (-not $Recreate) {
+    $existing = orca automations list --json | ConvertFrom-Json |
+        Select-Object -ExpandProperty result | Select-Object -ExpandProperty automations |
+        Where-Object { $_.name -eq $Name -and $_.runContext.path -eq $repoRoot } |
+        Select-Object -First 1
+
+    if ($existing) {
+        Write-Output "Updating existing automation '$Name' ($($existing.id))"
+        Write-Output "  provider : $($cfg.agent.provider)"
+        Write-Output "  schedule : $($cfg.schedule.rrule) ($($cfg.schedule.timezone))"
+
+        $editArgs = @(
+            'automations', 'edit', $existing.id,
+            '--prompt', $prompt,
+            '--provider', $cfg.agent.provider,
+            '--repo', "path:$repoRoot",
+            '--trigger', $cfg.schedule.rrule,
+            '--timezone', $cfg.schedule.timezone,
+            '--missed-run-grace-minutes', $cfg.schedule.missedRunGraceMinutes,
+            '--json'
+        )
+        $editArgs += $(if ($Disabled) { '--disabled' } else { '--enabled' })
+
+        $editResult = & orca @editArgs | ConvertFrom-Json
+        if (-not $editResult.ok) {
+            $editResult | ConvertTo-Json -Depth 5
+            exit 1
+        }
+
+        $auto = $editResult.result.automation
+        Write-Output ''
+        Write-Output "Updated: $($auto.id)"
+        Write-Output 'Verify:  orca automations show ' + $auto.id + ' --json'
+        exit 0
+    }
+}
 
 Write-Output "Creating automation '$Name'"
 Write-Output "  provider : $($cfg.agent.provider)"

@@ -11,10 +11,13 @@ _Quiet Tuesday. Almost everything worth installing was about the same failure._
   config.style, config.digest or styles/*.md, and ask: does a real run still look
   like this?
 
-  It shows the three things that matter:
+  It shows the four things that matter:
     1. Two-tier items   - a few in depth, the rest compact. Never labelled as a ranking.
     2. Punchy tone     - see styles/punchy.md for the rules behind the voice here.
     3. A closing line  - at most one per category, and not on every item.
+    4. Repo facts      - the in-depth "By:" line carries license, open issues, push
+                         recency and release count per config.digest.repoFacts.report.
+                         Stars alone would not say whether any of these are usable.
 
   Deliberately NOT shown: the sources footer, and the full 6 categories.
 -->
@@ -25,7 +28,7 @@ _Quiet Tuesday. Almost everything worth installing was about the same failure._
 
 **Your agents finally get a real shell on Windows.**
 
-- **By:** [20000419](https://github.com/20000419) · 823★ · TypeScript · 10 releases · `npm i -g fauxnix-cli`
+- **By:** [20000419](https://github.com/20000419) · 823★ · TypeScript · MIT · 13 open · pushed 4d ago · 10 releases · `npm i -g fauxnix-cli` · Windows-native
 - **Plainly:** you type `ls -la src | head -3`, it runs the PowerShell equivalent, and
   it prints GNU-shaped columns and bash-style errors. No VM, no WSL.
 - **TL;DR:** the WSL prompt is now optional.
@@ -64,7 +67,7 @@ _Quiet Tuesday. Almost everything worth installing was about the same failure._
 
 **The model proposes. A deterministic tool decides.**
 
-- **By:** [2akouwu](https://github.com/2akouwu) · 1.3k★ · Python · 10 releases · `pip install reverify`
+- **By:** [2akouwu](https://github.com/2akouwu) · 1.3k★ · Python · MIT · 12 open · pushed 8d ago · 10 releases · `pip install reverify` · Windows-native
 - **Plainly:** it checks every claim against ground truth with evidence attached, so a
   statement can't stand on the model's authority alone. MCP server *and* CLI.
 - **TL;DR:** "the test passes" becomes a fact about the code, not an assertion about itself.
@@ -101,7 +104,7 @@ independently checkable rather than self-reported.
 
 **"Agents can work. They cannot declare success."**
 
-- **By:** [3338902669-ops](https://github.com/3338902669-ops/agent-orchestra) · 99★ · JavaScript · Apache-2.0 · 6 releases
+- **By:** [3338902669-ops](https://github.com/3338902669-ops/agent-orchestra) · 99★ · JavaScript · Apache-2.0 · 0 open · pushed today · 6 releases
 - **Plainly:** eight contracts — Task, Resource, Ownership, Handoff, Verification,
   Evidence, Approval, Recovery — enforced in code rather than requested in a prompt.
   Ships a benchmark over six failure modes and a CONFORMANCE.md mapping all 41 MUSTs:

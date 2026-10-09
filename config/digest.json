@@ -42,6 +42,49 @@
     ]
   },
 
+  "repoFacts": {
+    "$comment": [
+      "The standard repo signals worth reporting on any GitHub item. Stars alone tell",
+      "you popularity, not whether the thing is usable. Each entry says what to fetch",
+      "and when it matters. Trim or extend freely - this is config."
+    ],
+    "report": [
+      "stars",
+      "language",
+      "license",
+      "lastCommit",
+      "openIssues",
+      "releases",
+      "contributing",
+      "goodFirstIssue",
+      "funding",
+      "archived",
+      "install",
+      "platform"
+    ],
+    "how": {
+      "stars": "Search API returns it. Round it - 823 not 823.4.",
+      "language": "Primary language from the search result.",
+      "license": "GET /repos/{owner}/{repo}/license or the repo object's license.spdx_id. No license is a real finding: 'no license' means you cannot legally use it. Say that plainly.",
+      "lastCommit": "GET /repos/{owner}/{repo} -> pushed_at. Under 30 days is alive; over a year is a corpse with stars.",
+      "openIssues": "open_issues_count from the same object.",
+      "releases": "GET /repos/{owner}/{repo}/releases.atom - free, no REST quota. No releases on a CLI or library is a maturity signal.",
+      "contributing": "Does CONTRIBUTING.md exist? GET /repos/{owner}/{repo}/contents/CONTRIBUTING.md - one cheap call.",
+      "goodFirstIssue": "GET /search/issues?q=repo:{owner}/{repo}+label:\"good first issue\". Signals the project is recruiting, which matters if you want to fix something rather than just use it.",
+      "funding": "GET /repos/{owner}/{repo} -> has_downloads / FUNDING.yml. Sponsored projects have their own incentives; worth knowing before trusting advice.",
+      "archived": "archived:true on the repo object. Read-only, unmaintained - say so.",
+      "install": "The real install command, copied from the README. Never invent one.",
+      "platform": "Windows-native, or Linux/macOS only. Stated, not implied - this machine is Windows."
+    },
+    "$comment2": [
+      "Budget: the unauthenticated REST API allows ~60 requests/hour, 10/min for search.",
+      "A 60-item run cannot afford one API call per repo per fact. Cheapest order:",
+      "search result already gives stars + language + pushed_at + open_issues + license.",
+      "Spend the rest on releases.atom (free) and only check CONTRIBUTING.md or",
+      "good-first-issue on Tier A items, where the detail is actually worth the call."
+    ]
+  },
+
   "audience": {
     "$comment": "The 'Use it for' line on every item is written for exactly this person.",
     "stack": "Laravel + Inertia + React + Postgres",
@@ -140,7 +183,7 @@
         "created:>{date-30d}+topic:agent-framework&sort=stars",
         "created:>{date-30d}+topic:coding-agent&sort=stars"
       ],
-      "note": "Prefer <60 days old. Report language, rough star count, whether it ships releases."
+      "note": "Prefer <60 days old. Report the repo facts listed in digest.repoFacts - stars alone is not the signal."
     },
     {
       "name": "CLI tools",

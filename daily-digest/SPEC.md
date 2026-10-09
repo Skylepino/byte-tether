@@ -41,12 +41,22 @@ Source: GitHub Search API.
 `https://api.github.com/search/repositories?q=created:>{date-30d}+topic:ai-agent&sort=stars`
 Vary the topic per run (`ai-agent`, `llm`, `mcp-server`, `agent-framework`,
 `developer-tools`, `coding-agent`). Prefer repos created in the last ~60 days showing
-early traction. Report language, star count, and whether it has releases.
+early traction.
+
+Report the signals in `config.digest.repoFacts.report` — stars, language, license,
+last-commit recency, open issues, release count, install command, platform. Stars
+alone are popularity, not usability:
+
+- **No license** means you cannot legally use it in work. Report that; don't drop it.
+- **`pushed_at`** older than a year means abandoned regardless of star count.
+- **`archived: true`** means read-only. Say so.
+- A library with zero releases is pre-1.0 — pin your version or don't depend on it.
 
 > Do **not** URL-encode the `q` parameter. Encoding `:` as `%3A` makes GitHub's search
 > parser return zero results with no error. Encode nothing; let the client handle spaces.
 > For release checks, use `https://github.com/<owner>/<repo>/releases.atom` — it costs
-> no REST quota.
+> no REST quota. The search result already returns stars, language, `pushed_at`,
+> `open_issues_count` and `license`, so you rarely need extra calls.
 
 ### 3. CLI tools (10)
 Source: GitHub search + awesome-lists. Terminal tools that improve an agent's loop:

@@ -18,12 +18,17 @@ covers, how many items per topic, and **how it sounds**.
 #    new_per_run automation checks out from git, so uncommitted = invisible.
 git add -A; git commit -m "digest tooling"
 
-# 2. Create the automation from config/digest.json
+# 2. Create the automation from config/digest.json.
+#    Safe to re-run: it updates an existing automation for this repo rather
+#    than making a second one that fires at the same hour every day.
 powershell -File tools\install-automation.ps1
 
 # 3. Fire one now
 powershell -File tools\run-digest.ps1
 ```
+
+Then re-read [`output/test/example.md`](output/test/example.md) — it's the reference
+output, and it is what a real run should still resemble.
 
 ---
 
@@ -40,6 +45,8 @@ commit, done. The automation prompt never needs to change.
 | `agent.provider` | `opencode`, `codex`, `claude`, `gemini`, `grok`, `pi`, `omp` |
 | `digest.itemsPerCategory` | How many items per category |
 | `digest.dedupWindowDays` | How far back to check for repeats |
+| `digest.repoFacts.report` | Which repo signals to report (license, last commit, releases, contributing…) |
+| `digest.repoFacts.how` | How to fetch each one, plus the API-call budget |
 | `audience` | Who the "Use it for" lines are written for — stack, tools, skills dir |
 | `style.tone` | Voice: `punchy`, `analyst`, `plain`, `social` |
 | `style.avoid` | Banned phrases — the fingerprint of generated prose |
@@ -92,6 +99,34 @@ self-contained:
 The `keywords` / `queries` lists are longer than any single run can exhaust. The
 agent rotates through a different slice each run — that's what stops the source well
 going dry before the dedup ledger even catches the repeat.
+
+### Change what gets reported about a repo
+
+Stars alone measure popularity, not whether the thing is usable. `repoFacts.report`
+lists the signals worth attaching to every GitHub item, and `repoFacts.how` says how
+to fetch each:
+
+```jsonc
+"repoFacts": {
+  "report": ["stars", "language", "license", "lastCommit", "releases", "install", "platform"],
+  "how": { "license": "GET /repos/{owner}/{repo}/license or license.spdx_id. …" }
+}
+```
+
+Three that change the answer rather than just decorating it:
+
+- **No license** — you cannot legally use it in work. Reported, not hidden.
+- **`pushed_at` over a year old** — abandoned, whatever the star count says.
+- **Zero releases on a library** — pre-1.0. Pin your version or don't depend on it.
+
+There is a real API budget here: unauthenticated, ~60 requests an hour and 10 search
+calls a minute, against 60 items. The search result already carries stars, language,
+`pushed_at`, `open_issues_count` and `license`, so spend the remaining calls on
+`releases.atom` (free) and keep `CONTRIBUTING.md` checks for in-depth items. `how`
+carries the full per-fact recipe.
+
+Trim `report` down to `["stars", "language"]` for a quicker digest, or add your own
+field with its recipe beside it.
 
 ### Change the tone
 
@@ -274,3 +309,12 @@ explicitly. Without it the script writes HTML and warns rather than failing the 
 **The writing reads like AI.** Check `style.avoid` — those phrases are the fingerprint.
 Then check `style.tone` matches the voice file you expect, and read
 `output/test/example.md` for what good looks like.
+
+**A config change didn't take effect.** Only `agent.provider` and `schedule.*` need
+`tools\install-automation.ps1` re-run — everything else is read fresh from
+`config/digest.json` on every run, because the prompt just tells the agent to read it.
+And check it got committed; an uncommitted config is invisible to the run.
+
+**Two automations firing the same digest.** A duplicate from an earlier
+`install-automation.ps1`. Check `orca automations list --json`, remove the one whose
+`runContext.path` isn't this repo.

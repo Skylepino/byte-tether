@@ -23,6 +23,11 @@ Instead: read `example.md` and ask whether a fresh run would still resemble it.
 
 1. **Tone.** Read three items out loud. Do they sound like a person or like a summary
    generator? Anything in `config.style.avoid` appearing verbatim is a failure.
+1b. **Repo facts.** Every in-depth `**By:**` line carries the fields in
+   `config.digest.repoFacts.report` — stars, language, license, open issues, push
+   recency, release count, install command, platform. If you changed `repoFacts`, this
+   is where you see whether the change landed. A missing license or an archive flag
+   must be stated, not quietly dropped.
 2. **No ranking.** Tier A items are *explained*, not *best*. If it reads like a "top 5",
    something got labelled that shouldn't be.
 3. **Author present.** Every in-depth item names who made it and links them.

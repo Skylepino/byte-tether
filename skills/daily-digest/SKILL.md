@@ -59,6 +59,22 @@ Two things that will save you time, both learned the hard way:
 - The MCP registry's newest entries are mostly ad servers and x402 payment stubs. Read
   the project's own README for transport and tool names instead of trusting the listing.
 
+### The repo facts
+
+`digest.repoFacts.report` lists what to report on any GitHub item, and `repoFacts.how`
+says how to fetch each one. Stars alone measure popularity, not usability. Two that
+change the answer:
+
+- **No license is a finding.** Without one you cannot legally use it in work. Say so
+  plainly rather than dropping the item.
+- **`pushed_at` beats the star count.** A 40k-star repo untouched for two years is a
+  corpse. Under 30 days is alive.
+
+Budget matters: the search result already carries stars, language, `pushed_at`,
+`open_issues_count` and `license`. Spend extra calls on `releases.atom` (free) and
+save `CONTRIBUTING.md` / good-first-issue checks for in-depth items, where the detail
+earns its cost. A 60-item run cannot afford one call per repo per fact.
+
 ## Step 4 — load the tone, then write
 
 ```bash
@@ -86,7 +102,7 @@ _<one-line mood summary — this is the cover card headline, so write it to fit 
 
 **<The hook. One line. This becomes the card headline, so write it first.>**
 
-- **By:** [owner](https://github.com/owner) · 823★ · TypeScript · `npm i -g thing` · Windows-native
+- **By:** [owner](https://github.com/owner) · 823★ · TypeScript · MIT · pushed 4d · 10 releases · `npm i -g thing` · Windows-native
 - **Plainly:** <what it actually does, no marketing>
 - **TL;DR:** <stands alone. A claim or a number, never a description.>
 
@@ -114,6 +130,11 @@ Rules that the format depends on:
 
 - **Author is required on Tier A.** Name the person or org and link them. Add "known
   for" only when it tells you something.
+- **Tier A carries the repo facts** from `digest.repoFacts.report` — at minimum stars,
+  language, license, last-commit recency, release count, install command and platform.
+  Compact items get stars + language + install, nothing more.
+- **Missing license or an archive flag is stated, not omitted.** Both change whether
+  the item is usable at all.
 - **TL;DR must survive being read alone.** No "this", no "it", no back-reference to the item.
 - **"Use it for" starts with a verb.** It is an action, not a restatement of the README.
 - **The closing line is scarce.** `style.closingLine.maxPerCategory`, default 1. A nudge
