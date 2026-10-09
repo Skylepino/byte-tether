@@ -1,128 +1,141 @@
-{
-  "$comment": [
-    "EVERY customizable knob of the daily digest lives in this file.",
-    "Edit this, commit it, and the next run picks it up. The automation prompt",
-    "never needs to change.",
-    "If AGENTS.md and this file disagree, this file wins."
-  ],
-
-  "automation": {
-    "id": "",
-    "name": "daily-interest-digest",
-    "$comment": "id is written by tools/install-automation.ps1. It points at a machine-local Orca project; re-run that script if orca reports the automation as orphaned."
-  },
-
-  "schedule": {
-    "rrule": "FREQ=DAILY;BYHOUR=18;BYMINUTE=0",
-    "timezone": "Asia/Manila",
-    "catchupAfterHours": 20,
-    "missedRunGraceMinutes": 720
-  },
-
-  "agent": {
-    "provider": "opencode",
-    "$comment": "Switch to codex, claude, gemini, grok, pi, omp... Model is chosen inside the agent, not here."
-  },
-
-  "digest": {
-    "itemsPerCategory": 10,
-    "dedupWindowDays": 90,
-    "outputDir": "output",
-    "indexFile": "output/INDEX.md",
-    "templateFile": "daily-digest/SPEC.md"
-  },
-
-  "audience": {
-    "$comment": "The 'Use for' line on every item is written for exactly this person.",
-    "stack": "Laravel + Inertia + React + Postgres",
-    "runs": "Orca worktrees with opencode, codex and agy",
-    "skills": "agent skills installed in ~/.agents/skills"
-  },
-
-  "publishing": {
-    "devto": {
-      "enabled": true,
-      "envKey": "DEVTO_API_KEY",
-      "published": false,
-      "$comment": "published=false posts a DRAFT. Proofread before it goes live."
-    },
-    "coverImage": {
-      "enabled": true,
-      "envKey": "OPENAI_API_KEY",
-      "width": 1000,
-      "height": 420,
-      "$comment": "Skipped silently when the key is absent. Never fail the digest over media."
-    }
-  },
-
-  "categories": [
-    {
-      "name": "Agent skills",
-      "count": 10,
-      "focus": "Installable skill packs that make an agent loop better.",
-      "sources": ["npx --yes skills find \"<keyword>\"", "https://skills.sh"],
-      "keywords": [
-        "agent-skills", "claude-code", "mcp", "test", "refactor", "security",
-        "laravel", "react", "observability", "prompt", "skill-creator"
-      ],
-      "note": "Install hint: npx --yes skills add owner/repo@skill --global --agent universal -y"
-    },
-    {
-      "name": "GitHub projects",
-      "count": 10,
-      "focus": "New repos in the agent ecosystem showing early traction.",
-      "sources": ["https://api.github.com/search/repositories"],
-      "queries": [
-        "created:>{date-30d}+topic:ai-agent&sort=stars",
-        "created:>{date-30d}+topic:llm&sort=stars",
-        "created:>{date-30d}+topic:mcp-server&sort=stars",
-        "created:>{date-30d}+topic:agent-framework&sort=stars",
-        "created:>{date-30d}+topic:coding-agent&sort=stars"
-      ],
-      "note": "Prefer <60 days old. Report language, rough star count, whether it ships releases."
-    },
-    {
-      "name": "CLI tools",
-      "count": 10,
-      "focus": "Terminal tools that sharpen an agent's loop.",
-      "sources": ["https://api.github.com/search/repositories", "awesome-lists"],
-      "queries": [
-        "cli+created:>{date-60d}&sort=stars",
-        "topic:tui+created:>{date-90d}&sort=stars",
-        "topic:terminal+created:>{date-90d}&sort=stars"
-      ],
-      "note": "Report install method (brew/scoop/npm/cargo/go/pip/uv) and whether it is Windows-safe."
-    },
-    {
-      "name": "MCP servers",
-      "count": 10,
-      "focus": "Servers that add real capability to Orca/opencode/codex.",
-      "sources": [
-        "https://github.com/modelcontextprotocol/registry",
-        "awesome-mcp-servers"
-      ],
-      "note": "Report transport (stdio/http) and one example tool call."
-    },
-    {
-      "name": "Agent frameworks & orchestration",
-      "count": 10,
-      "focus": "Harnesses, multi-agent orchestration, task DAGs, handoffs, eval harnesses, agent memory, context engineering, MCP gateways, sandboxes.",
-      "sources": ["https://api.github.com/search/repositories", "engineering blogs"],
-      "note": "The category that matters most. Read closer, write richer notes."
-    },
-    {
-      "name": "Papers & writing worth reading",
-      "count": 10,
-      "focus": "Real technique, real benchmarks, post-mortems, architecture write-ups, eval methodology. No SEO filler, no '10 best X' listicles.",
-      "sources": [
-        "https://dev.to/feed/tag/ai",
-        "https://dev.to/feed",
-        "https://daily.dev/rss.xml",
-        "https://export.arxiv.org/api/query?search_query=cat:cs.AI",
-        "https://news.ycombinator.com/rss",
-        "https://simonwillison.net/atom/everything/"
-      ],
-      "note": "Report reading time and one sentence on why it is worth the time."
-    }
-  ]
+﻿{
+    "$comment":  [
+                     "EVERY customizable knob of the daily digest lives in this file.",
+                     "Edit this, commit it, and the next run picks it up. The automation prompt",
+                     "never needs to change.",
+                     "If AGENTS.md and this file disagree, this file wins."
+                 ],
+    "automation":  {
+                       "id":  null,
+                       "name":  "daily-interest-digest",
+                       "$comment":  "id is written by tools/install-automation.ps1. It points at a machine-local Orca project; re-run that script if orca reports the automation as orphaned."
+                   },
+    "schedule":  {
+                     "rrule":  "FREQ=DAILY;BYHOUR=18;BYMINUTE=0",
+                     "timezone":  "Asia/Manila",
+                     "catchupAfterHours":  20,
+                     "missedRunGraceMinutes":  720
+                 },
+    "agent":  {
+                  "provider":  "opencode",
+                  "$comment":  "Switch to codex, claude, gemini, grok, pi, omp... Model is chosen inside the agent, not here."
+              },
+    "digest":  {
+                   "itemsPerCategory":  10,
+                   "dedupWindowDays":  90,
+                   "outputDir":  "output",
+                   "indexFile":  "output/INDEX.md",
+                   "templateFile":  "daily-digest/SPEC.md"
+               },
+    "audience":  {
+                     "$comment":  "The \u0027Use for\u0027 line on every item is written for exactly this person.",
+                     "stack":  "Laravel + Inertia + React + Postgres",
+                     "runs":  "Orca worktrees with opencode, codex and agy",
+                     "skills":  "agent skills installed in ~/.agents/skills"
+                 },
+    "publishing":  {
+                       "devto":  {
+                                     "enabled":  true,
+                                     "envKey":  "DEVTO_API_KEY",
+                                     "published":  false,
+                                     "$comment":  "published=false posts a DRAFT. Proofread before it goes live."
+                                 },
+                       "coverImage":  {
+                                          "enabled":  true,
+                                          "envKey":  "OPENAI_API_KEY",
+                                          "width":  1000,
+                                          "height":  420,
+                                          "$comment":  "Skipped silently when the key is absent. Never fail the digest over media."
+                                      }
+                   },
+    "categories":  [
+                       {
+                           "name":  "Agent skills",
+                           "count":  10,
+                           "focus":  "Installable skill packs that make an agent loop better.",
+                           "sources":  [
+                                           "npx --yes skills find \"\u003ckeyword\u003e\"",
+                                           "https://skills.sh"
+                                       ],
+                           "keywords":  [
+                                            "agent-skills",
+                                            "claude-code",
+                                            "mcp",
+                                            "test",
+                                            "refactor",
+                                            "security",
+                                            "laravel",
+                                            "react",
+                                            "observability",
+                                            "prompt",
+                                            "skill-creator"
+                                        ],
+                           "note":  "Install hint: npx --yes skills add owner/repo@skill --global --agent universal -y"
+                       },
+                       {
+                           "name":  "GitHub projects",
+                           "count":  10,
+                           "focus":  "New repos in the agent ecosystem showing early traction.",
+                           "sources":  [
+                                           "https://api.github.com/search/repositories"
+                                       ],
+                           "queries":  [
+                                           "created:\u003e{date-30d}+topic:ai-agent\u0026sort=stars",
+                                           "created:\u003e{date-30d}+topic:llm\u0026sort=stars",
+                                           "created:\u003e{date-30d}+topic:mcp-server\u0026sort=stars",
+                                           "created:\u003e{date-30d}+topic:agent-framework\u0026sort=stars",
+                                           "created:\u003e{date-30d}+topic:coding-agent\u0026sort=stars"
+                                       ],
+                           "note":  "Prefer \u003c60 days old. Report language, rough star count, whether it ships releases."
+                       },
+                       {
+                           "name":  "CLI tools",
+                           "count":  10,
+                           "focus":  "Terminal tools that sharpen an agent\u0027s loop.",
+                           "sources":  [
+                                           "https://api.github.com/search/repositories",
+                                           "awesome-lists"
+                                       ],
+                           "queries":  [
+                                           "cli+created:\u003e{date-60d}\u0026sort=stars",
+                                           "topic:tui+created:\u003e{date-90d}\u0026sort=stars",
+                                           "topic:terminal+created:\u003e{date-90d}\u0026sort=stars"
+                                       ],
+                           "note":  "Report install method (brew/scoop/npm/cargo/go/pip/uv) and whether it is Windows-safe."
+                       },
+                       {
+                           "name":  "MCP servers",
+                           "count":  10,
+                           "focus":  "Servers that add real capability to Orca/opencode/codex.",
+                           "sources":  [
+                                           "https://github.com/modelcontextprotocol/registry",
+                                           "awesome-mcp-servers"
+                                       ],
+                           "note":  "Report transport (stdio/http) and one example tool call."
+                       },
+                       {
+                           "name":  "Agent frameworks \u0026 orchestration",
+                           "count":  10,
+                           "focus":  "Harnesses, multi-agent orchestration, task DAGs, handoffs, eval harnesses, agent memory, context engineering, MCP gateways, sandboxes.",
+                           "sources":  [
+                                           "https://api.github.com/search/repositories",
+                                           "engineering blogs"
+                                       ],
+                           "note":  "The category that matters most. Read closer, write richer notes."
+                       },
+                       {
+                           "name":  "Papers \u0026 writing worth reading",
+                           "count":  10,
+                           "focus":  "Real technique, real benchmarks, post-mortems, architecture write-ups, eval methodology. No SEO filler, no \u002710 best X\u0027 listicles.",
+                           "sources":  [
+                                           "https://dev.to/feed/tag/ai",
+                                           "https://dev.to/feed",
+                                           "https://daily.dev/rss.xml",
+                                           "https://export.arxiv.org/api/query?search_query=cat:cs.AI",
+                                           "https://news.ycombinator.com/rss",
+                                           "https://simonwillison.net/atom/everything/"
+                                       ],
+                           "note":  "Report reading time and one sentence on why it is worth the time."
+                       }
+                   ]
 }

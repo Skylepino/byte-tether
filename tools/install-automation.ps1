@@ -60,13 +60,22 @@ if (-not $result.ok) {
     exit 1
 }
 
-$auto = $result.result.automations | Select-Object -Last 1
+$auto = $result.result.automation
+if (-not $auto) {
+    Write-Error 'Orca did not return an automation object. Nothing was written to config.'
+    $result | ConvertTo-Json -Depth 5
+    exit 1
+}
+
 Write-Output ''
 Write-Output "Created: $($auto.id)"
 
 # Write the id back so tools\run-digest.ps1 and check-staleness.ps1 can find it.
-$cfg.automation.id = $auto.id
-$cfg | ConvertTo-Json -Depth 12 | Set-Content $configPath -Encoding utf8
+# Patch the id in place rather than re-serializing, so the hand-written
+# "$comment" keys and formatting in digest.json survive untouched.
+$text = Get-Content $configPath -Raw
+$text = $text -replace '("id"\s*:\s*)"[^"]*"', ('$1"' + $auto.id + '"')
+Set-Content -Path $configPath -Value $text -Encoding utf8
 
 Write-Output "Wrote automation.id into config/digest.json"
 Write-Output ''
