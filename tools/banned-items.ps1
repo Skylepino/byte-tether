@@ -2,8 +2,9 @@
 .SYNOPSIS
     Print every item inside the dedup window. These are BANNED.
 .DESCRIPTION
-    Reads output/INDEX.md and prints the Date | Category | Item | URL rows that
-    fall inside config/digest.json -> digest.dedupWindowDays, newest first.
+    Reads the ledger at config/digest.json -> digest.indexFile (ledger/INDEX.md) and
+    prints the Date | Category | Item | URL rows that fall inside
+    digest.dedupWindowDays, newest first.
     Run this BEFORE selecting anything. Selecting first is how digests repeat.
 .EXAMPLE
     powershell -File tools/banned-items.ps1
@@ -17,14 +18,19 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $configPath = Join-Path $repoRoot 'config\digest.json'
-$indexPath  = Join-Path $repoRoot 'output\INDEX.md'
+$indexPath  = Join-Path $repoRoot 'ledger\INDEX.md'
 
+if (-not (Test-Path $configPath)) {
+    Write-Error "Missing config: $configPath"
+    exit 1
+}
+
+# The ledger location is config-driven, not hardcoded, so moving it stays a one-line change.
+$cfg = Get-Content $configPath -Raw | ConvertFrom-Json
+if ($cfg.digest.indexFile) {
+    $indexPath = Join-Path $repoRoot $cfg.digest.indexFile
+}
 if ($WindowDays -le 0) {
-    if (-not (Test-Path $configPath)) {
-        Write-Error "Missing config: $configPath"
-        exit 1
-    }
-    $cfg = Get-Content $configPath -Raw | ConvertFrom-Json
     $WindowDays = [int] $cfg.digest.dedupWindowDays
     if ($WindowDays -le 0) { $WindowDays = 90 }
 }

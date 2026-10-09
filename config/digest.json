@@ -28,30 +28,91 @@
     "itemsPerCategory": 10,
     "dedupWindowDays": 90,
     "outputDir": "output",
-    "indexFile": "output/INDEX.md",
-    "templateFile": "daily-digest/SPEC.md"
+    "indexFile": "ledger/INDEX.md",
+    "templateFile": "daily-digest/SPEC.md",
+    "exampleDir": "output/test",
+    "$comment": [
+      "indexFile MUST stay tracked by git. The automation checks out a fresh worktree",
+      "per run, so an ignored ledger means every run starts with an empty blocklist and",
+      "the digest repeats yesterday. That is the one rule. Hence it lives in /ledger/,",
+      "NOT inside the gitignored /output/.",
+      "",
+      "outputDir holds generated artifacts (daily .md, PDFs, cards) and is gitignored.",
+      "exampleDir is the tracked QA fixture - re-read it after changing style/format."
+    ]
   },
 
   "audience": {
-    "$comment": "The 'Use for' line on every item is written for exactly this person.",
+    "$comment": "The 'Use it for' line on every item is written for exactly this person.",
     "stack": "Laravel + Inertia + React + Postgres",
     "runs": "Orca worktrees with opencode, codex and agy",
-    "skills": "agent skills installed in ~/.agents/skills"
+    "skills": "agent skills installed in ~/.agents/skills",
+    "host": "Windows 11 + PowerShell",
+    "$comment2": "host matters: say plainly whether a tool is Windows-safe instead of leaving it implied."
   },
 
-  "publishing": {
-    "devto": {
+  "style": {
+    "tone": "punchy",
+    "tonesDir": "styles",
+    "$comment": [
+      "Voice lives in styles/<tone>.md. Change `tone` to switch it - the automation",
+      "prompt never changes. Available: punchy (default), analyst, plain, social."
+    ],
+
+    "depthItems": 6,
+    "$comment2": [
+      "How many items in a run get the full in-depth write-up.",
+      "Deliberately NOT labelled or ordered as a 'top N'. Nothing here is ranked -",
+      "an in-depth item is just the one that needed more explaining. The rest are compact."
+    ],
+
+    "closingLine": {
       "enabled": true,
-      "envKey": "DEVTO_API_KEY",
-      "published": false,
-      "$comment": "published=false posts a DRAFT. Proofread before it goes live."
+      "maxPerCategory": 1,
+      "$comment": [
+        "An explicit 'go and look at this' nudge. Deliberately scarce: at most one per",
+        "category, and not on the in-depth items (those already carry the hook).",
+        "Used too often it reads as a mark-up job and gets skipped."
+      ]
     },
-    "coverImage": {
+
+    "avoid": [
+      "delve", "landscape", "game-changer", "revolutionary", "seamless", "robust",
+      "leverage", "in today's fast-moving", "it's worth noting", "needless to say",
+      "at the end of the day", "the bottom line", "a testament to",
+      "not just X, but Y", "in an era where", "unlock", "supercharge", "elevate",
+      "whether you're a", "the best part?", "buckle up", "let's dive in",
+      "further reading", "as an AI", "in conclusion", "overall"
+    ],
+    "$comment3": "Banned on sight. Most of these are the fingerprints of generated prose."
+  },
+
+  "assets": {
+    "enabled": true,
+    "dir": "output/assets",
+    "$comment": [
+      "Local files for MANUAL posting. The automation never publishes anywhere -",
+      "no dev.to, no API, no keys. It renders a PDF and a set of PNG cards; you copy",
+      "whatever you want onto whatever you post to."
+    ],
+    "pdf": {
       "enabled": true,
-      "envKey": "OPENAI_API_KEY",
-      "width": 1000,
-      "height": 420,
-      "$comment": "Skipped silently when the key is absent. Never fail the digest over media."
+      "pageSize": "A4"
+    },
+    "cards": {
+      "enabled": true,
+      "cover": true,
+      "perCategory": true,
+      "width": 1200,
+      "height": 630
+    },
+    "engine": {
+      "browser": "auto",
+      "$comment": [
+        "HTML -> PDF/PNG via a headless Chromium found at run time (Edge, Chrome).",
+        "No pandoc, no wkhtmltopdf, no flameshot, no ImageMagick required.",
+        "tools/render_assets.py is stdlib-only Python 3."
+      ]
     }
   },
 

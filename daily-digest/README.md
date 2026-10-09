@@ -10,8 +10,13 @@ An automated once-a-day digest of the AI/agent tooling ecosystem: 10 items acros
 | `SPEC.md` | The full spec — categories, sources, dedup rules, output format |
 | `catchup-on-launch.ps1` | Startup-folder script that fires the digest if it's >20h stale |
 
-Digests land in `../output/YYYY-MM-DD.md`, with `../output/INDEX.md` as the
-dedup ledger that keeps consecutive days from repeating each other.
+Digests land in `../output/YYYY-MM-DD.md` (gitignored), with `../ledger/INDEX.md`
+as the dedup ledger that keeps consecutive days from repeating each other. The
+ledger sits outside `output/` on purpose: the automation checks out a fresh
+worktree per run, so anything inside the ignored folder would be invisible tomorrow.
+
+`../output/test/example.md` is the reference output — read it after changing the
+tone or the format.
 
 ## Categories
 
@@ -35,11 +40,19 @@ orca automations edit <id> --time 08:00 --json
 
 If Orca was closed at 18:00, the next login triggers a catch-up run.
 
-## Optional: auto-post to dev.to
+## Assets: rendered locally, posted by hand
 
-Set `DEVTO_API_KEY` in the environment and the digest will also render a social
-card and POST a **draft** to dev.to. Without the key it skips silently.
-Drafts are deliberate — proofread before anything publishes under your name.
+**Nothing is ever published automatically.** No dev.to, no API call, no key.
+
+Each run renders into `../output/assets/`: a PDF of the digest, a cover card, and one
+card per category (1200×630 PNG). Copy whichever you want onto wherever you post.
+
+```powershell
+python ..\tools\render_assets.py output\2026-10-09.md
+```
+
+Rendering uses a headless Edge/Chromium already on the machine — nothing to install.
+`../output/test/example.pdf` and `../output/test/example-*.png` show what it produces.
 
 ---
 

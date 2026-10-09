@@ -1,6 +1,6 @@
 ---
 name: daily-digest
-description: Generate the daily digest — pick fresh items across every category in config/digest.json, verify each one against a live source, write output/YYYY-MM-DD.md, and prepend output/INDEX.md. Use when asked to run/generate/refresh the digest, or when invoked by the scheduled automation.
+description: Generate the daily digest — pick fresh items across every category in config/digest.json, verify each one against a live source, write output/YYYY-MM-DD.md, prepend ledger/INDEX.md, and render local PDF + social cards for manual posting. Use when asked to run/generate/refresh the digest, or when invoked by the scheduled automation.
 ---
 
 # Daily digest run
@@ -15,124 +15,166 @@ cat config/digest.json
 ```
 
 Everything below is driven by that file: how many items, which categories, which
-sources, which keyword families, how far back the dedup window reaches. If it
-disagrees with anything in this skill or in `AGENTS.md`, the config wins.
+sources, which keyword families, how far back the dedup window reaches, **and what
+tone the writing is in**. If it disagrees with anything in this skill or in `AGENTS.md`,
+the config wins.
 
 ## Step 1 — build the blocklist FIRST
 
-```bash
+```powershell
 powershell -File tools/banned-items.ps1
 ```
 
-This prints every item in the dedup window. Do not select anything until you have
-read the whole list. Selecting first and checking after is how digests start
-repeating themselves.
+This prints every item inside the dedup window, read from the ledger at
+`digest.indexFile` (`ledger/INDEX.md`). Do not select anything until you have read the
+whole list. Selecting first and checking after is how digests start repeating themselves.
 
-Also read `output/INDEX.md` directly — the script gives you URLs and names, but the
-ledger's structure is what you need to append to correctly later.
+Also read `ledger/INDEX.md` directly — the script gives you URLs and names, but the
+ledger's structure is what you append to later.
 
 ## Step 2 — widen the well
 
-Every category in the config carries a `keywords` / `queries` list that is longer
-than one run can exhaust. Pick a *different slice* each run rather than taking the
-first two and always getting the same ten results. Rotating the slice is what stops
-the source well from going dry before the blocklist even catches it.
+Every category carries a `keywords` / `queries` list longer than one run can exhaust.
+Pick a *different slice* each run rather than always drawing the same ten results.
+Rotating the slice is what stops the source well going dry before the blocklist catches it.
 
 ## Step 3 — verify every candidate
 
-For each candidate, actually fetch or query the source. No recall from training —
-the training cutoff is behind you and this is a *discovery* tool. A recall-based item
-is a bug.
+For each candidate, actually fetch or query the source. No recall from training — the
+training cutoff is behind you and this is a *discovery* tool. A recall-based item is a bug.
 
-- GitHub items: hit the Search API or the repo page. Record language, star count,
+- **GitHub items:** hit the Search API or the repo page. Record language, star count,
   whether releases exist.
-- Skills: `npx --yes skills find "<keyword>"` or skills.sh. Record install counts
-  when shown.
-- MCP: the registry or an awesome list. Record transport and one real tool call.
-- Writing: the actual feed entry. Record reading time if the source states it.
+- **Skills:** `npx --yes skills find "<keyword>"` or skills.sh. Record install counts.
+- **MCP:** the registry or an awesome list. Record transport and one real tool call.
+- **Writing:** the actual feed entry. Record reading time if the source states it.
 
-If a source will not load, drop the item. Do not substitute a remembered version of
-it.
+If a source will not load, drop the item. Do not substitute a remembered version of it.
 
-## Step 4 — write the "Use for" line
+Two things that will save you time, both learned the hard way:
 
-Write it for the person in `config.audience`. Concretely:
+- `https://github.com/<owner>/<repo>/releases.atom` tells you whether a repo ships
+  releases without spending a single REST API request. The unauthenticated API allows
+  roughly 10 search calls a minute — the atom feed doesn't count.
+- The MCP registry's newest entries are mostly ad servers and x402 payment stubs. Read
+  the project's own README for transport and tool names instead of trusting the listing.
 
-> → *Use for:* Pull `owner/repo@skill` into the skills dir and have the agent run
-> the refactor pass after every Laravel controller change.
+## Step 4 — load the tone, then write
 
-Not:
+```bash
+cat styles/$(jq -r .style.tone config/digest.json).md
+```
 
-> → *Use for:* A useful tool for developers.
+The voice is a file. Read it before you write a single line. The default is `punchy`.
 
-The second one is noise. The first one is the reason the tool exists.
+Then check every draft against `style.avoid` — the list of banned phrases, which is the
+fingerprint of generated prose. Anything on it is a failure, not a style choice.
 
 ## Step 5 — write the digest
+
+Two tiers per category. **Neither is a ranking** — nothing here is "best", and the output
+must not imply otherwise. Tier A items are simply the ones that needed more explaining.
 
 ```markdown
 # Daily Interest Digest — YYYY-MM-DD
 
-_<one-line mood summary of the day>_
+_<one-line mood summary — this is the cover card headline, so write it to fit one>_
 
-## <Category> (<n>)
-1. **name** — what it is, one line.
-   → *Use for:* <concrete, for config.audience>
-   <url>
+## <Category>
 
-...one block per category from the config...
+### <in-depth item>
+
+**<The hook. One line. This becomes the card headline, so write it first.>**
+
+- **By:** [owner](https://github.com/owner) · 823★ · TypeScript · `npm i -g thing` · Windows-native
+- **Plainly:** <what it actually does, no marketing>
+- **TL;DR:** <stands alone. A claim or a number, never a description.>
+
+**Use it for:** <a verb, an action, written for config.audience>
+
+<url>
+
+- **owner/repo** — <one line.> `<install command>`. 256★, Go.
+  **Use it for:** <concrete action.> [repo](<url>)
+
+> <the closing line — at most one per category, never on a Tier A item>
 
 ## Thread of the day
-_<If 2–3 items across categories connect into one idea, name it here. This is the
-section that actually gets read._
+
+**<The pattern, in one line.>**
+
+- <proof from one category>
+- <proof from another>
 
 ---
-_Generated by Orca automation · <sources actually used>_
+_generated by Orca automation · sources actually used_
 ```
 
-If a category is genuinely dry, ship fewer items and say so in one line under the
-heading. Never pad. A short honest category beats a padded one.
+Rules that the format depends on:
 
-`daily-digest/SPEC.md` holds the same template if you need the full version.
+- **Author is required on Tier A.** Name the person or org and link them. Add "known
+  for" only when it tells you something.
+- **TL;DR must survive being read alone.** No "this", no "it", no back-reference to the item.
+- **"Use it for" starts with a verb.** It is an action, not a restatement of the README.
+- **The closing line is scarce.** `style.closingLine.maxPerCategory`, default 1. A nudge
+  on every item reads as a mark-up job and gets skipped.
+- **Platform is stated, not implied.** This machine is Windows; "Linux/macOS only" is
+  information, not a flaw in the item.
+
+If a category is genuinely dry, ship fewer items and say so in one line. Never pad.
+
+`daily-digest/SPEC.md` holds the longer version of this template.
 
 ## Step 6 — update the ledger
 
-Prepend one row per item to `output/INDEX.md`, newest first:
+Prepend one row per item to `digest.indexFile` (`ledger/INDEX.md`), newest first:
 
 ```markdown
 | Date | Category | Item | URL |
 |------|----------|------|-----|
-| 2026-10-09 | skills | owner/repo@skill | https://... |
+| 2026-10-09 | cli | owner/repo | https://... |
 ```
 
-The date must be the real current date from the environment, not the date you think
-it is. Newest rows go **above** older ones.
+The date must be the real current date from the environment. Newest rows go **above**
+older ones.
 
-## Step 7 — media, only if configured
+The ledger lives outside `output/` on purpose: `output/` is gitignored, and this
+automation checks out a fresh worktree per run. A ledger that isn't committed means an
+empty blocklist tomorrow.
 
-Check `config.publishing`. Each block is opt-in and gated on an env var.
+## Step 7 — render local assets
 
-- If `DEVTO_API_KEY` is set: generate the cover image, `POST https://dev.to/api/articles`
-  with `published: false`, report the edit URL back.
-- If the key is absent: skip silently. Do not warn, do not fail, do not ask.
-- **Never commit a key.** Read from the environment only.
+```powershell
+python tools\render_assets.py output\YYYY-MM-DD.md
+```
 
-Draft, not publish. Unreviewed generated output should not go out under someone's
-name on its own.
+Writes `output/assets/`: one PDF of the whole digest, a cover card, and a card per
+category at 1200×630. Renders through a headless Edge/Chromium already on the machine.
+
+**This step never publishes anything.** No dev.to, no API, no key, no network. The files
+land on disk and a human copies whatever they want onto wherever they post. If the
+browser is missing the script writes HTML and warns — it never fails the digest.
+
+Run `python tools\render_assets.py --selftest` after editing the renderer.
 
 ## Step 8 — commit
 
 ```bash
-git add output/ && git commit -m "digest YYYY-MM-DD"
+git add -A && git commit -m "digest YYYY-MM-DD"
 ```
 
-Both files, one commit. If media was generated, do not commit the image binary unless
-the user asked for it.
+`output/` is gitignored on purpose; the run's markdown, PDF and cards stay local. What
+gets committed is `ledger/INDEX.md` (the dedup state) and any tooling or config changes.
+Never commit a key.
 
 ## Anti-patterns
 
 - Selecting first, checking the ledger after.
 - Listing something because you remember it rather than because you fetched it.
 - Padding a dry category to hit a number.
-- A "Use for" line that restates the README.
+- A "Use it for" line that restates the README.
+- Labelling Tier A as "top picks" or numbering it as a ranking. It isn't one.
+- Reaching for a phrase on `style.avoid`. That's the tell that reads as machine-written.
+- Trying to publish. Posting is manual, always.
 - Committing a secret, or writing a key into any file in this repo.
 - Guessing today's date instead of reading it from the environment.

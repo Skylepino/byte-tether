@@ -2,11 +2,12 @@
 
 A **self-contained daily digest automation**. Once a day, a scheduled agent run
 collects the things worth knowing in the AI/agent tooling ecosystem and writes them
-to `output/YYYY-MM-DD.md` — each with a real source URL and a concrete note on what
-you'd actually do with it.
+to `output/YYYY-MM-DD.md` — each with a real source URL, who made it, and a concrete
+note on what you'd actually do with it. It then renders a PDF and a set of social
+cards **locally**, which you post by hand.
 
 Everything is customizable: which agent runs it, when it runs, what topics it
-covers, how many items per topic, whether it publishes anywhere.
+covers, how many items per topic, and **how it sounds**.
 
 ---
 
@@ -39,8 +40,12 @@ commit, done. The automation prompt never needs to change.
 | `agent.provider` | `opencode`, `codex`, `claude`, `gemini`, `grok`, `pi`, `omp` |
 | `digest.itemsPerCategory` | How many items per category |
 | `digest.dedupWindowDays` | How far back to check for repeats |
-| `audience` | Who the "Use for" lines are written for — stack, tools, skills dir |
-| `publishing.*` | dev.to drafts, cover image; each gated on an env var |
+| `audience` | Who the "Use it for" lines are written for — stack, tools, skills dir |
+| `style.tone` | Voice: `punchy`, `analyst`, `plain`, `social` |
+| `style.avoid` | Banned phrases — the fingerprint of generated prose |
+| `style.depthItems` | How many items get the full in-depth write-up |
+| `style.closingLine` | How many "go look at this" nudges per category (scarce on purpose) |
+| `assets.*` | PDF + social cards, rendered locally for **manual** posting |
 | `categories[]` | Add, remove, or retune topics: focus, sources, keyword rotation |
 
 ### Change the agent
@@ -88,20 +93,55 @@ The `keywords` / `queries` lists are longer than any single run can exhaust. The
 agent rotates through a different slice each run — that's what stops the source well
 going dry before the dedup ledger even catches the repeat.
 
-### Change the publishing
+### Change the tone
 
-Both blocks are opt-in and gate on an environment variable. Absent key = skip
-silently, never a failed digest.
+The voice is a **file**. Pick one by name, no prompt edits:
 
 ```jsonc
-"publishing": {
-  "devto":       { "enabled": true, "envKey": "DEVTO_API_KEY", "published": false },
-  "coverImage":  { "enabled": true, "envKey": "OPENAI_API_KEY", "width": 1000, "height": 420 }
-}
+"style": { "tone": "punchy" }   // punchy | analyst | plain | social
 ```
 
-`published: false` posts a **draft** with an edit URL. That's deliberate —
-unreviewed generated output shouldn't go live under your name by itself.
+| File | Shape |
+|---|---|
+| `styles/punchy.md` | Default. Newsletter with opinions: short sentences, real numbers, one idea per item. |
+| `styles/analyst.md` | Dense and hedged, mechanism-first. Limitations stated on every item. |
+| `styles/plain.md` | Descriptive only. No recommendations, no editorialising. |
+| `styles/social.md` | Built to be lifted out of context — TL;DRs that work alone. |
+
+Adding a tone is just a new file in `styles/`. Then point `style.tone` at it.
+
+`style.avoid` is the companion: a banned-phrase list (`delve`, `seamless`, `leverage`,
+`not just X but Y`, …). Anything on it in a draft is a defect, not a style choice.
+
+Two more dials in the same block:
+
+- `depthItems` — how many items per run get the full in-depth write-up. Not a ranking;
+  the output is never presented as "top N".
+- `closingLine.maxPerCategory` — how many explicit "go look at this" nudges to write.
+  Default `1`. Scarcity is the whole point; a nudge on every item is a mark-up job.
+
+### Assets and posting
+
+**Nothing is ever published.** No dev.to, no API call, no key — by design. Each run
+renders local files into `output/assets/` and a human posts them by hand.
+
+```powershell
+python tools\render_assets.py output\2026-10-09.md
+```
+
+| File | What it is |
+|---|---|
+| `2026-10-09.pdf` | The whole digest, styled, A4 |
+| `2026-10-09-cover.png` | Cover card: mood line + thread, 1200×630 |
+| `2026-10-09-<category>.png` | One card per category, 1200×630 |
+
+Rendering is markdown → HTML → headless Edge/Chromium, found automatically. **Nothing to
+install** — no pandoc, no wkhtmltopdf, no ImageMagick. `tools/render_assets.py` is
+stdlib-only Python 3. Set `DIGEST_BROWSER` if you need to point it at a specific binary.
+
+```powershell
+python tools\render_assets.py --selftest   # check the parser before trusting a render
+```
 
 ---
 
@@ -112,25 +152,33 @@ config/digest.json      ← all the knobs
       ↓
 AGENTS.md               ← repo instructions, loaded first by any agent
       ↓
+styles/<tone>.md        ← the voice
+      ↓
 skills/daily-digest/    ← the procedure (SKILL.md)
       ↓
 daily-digest/SPEC.md    ← output format template
       ↓
 output/YYYY-MM-DD.md    ← the digest
-output/INDEX.md         ← dedup ledger, newest first
+output/assets/          ← PDF + social cards (local, for you to post)
+ledger/INDEX.md         ← dedup ledger, newest first
 ```
 
-The one rule that makes it useful: **never list an item already in `INDEX.md`
+The one rule that makes it useful: **never list an item already in `ledger/INDEX.md`
 inside the dedup window.** A digest that repeats yesterday is worthless, so the
 ledger is read *before* anything is selected.
 
 ```
-Run N:   read INDEX.md → build blocklist → verify against live sources → write digest → prepend ledger
+Run N:   read ledger → build blocklist → verify against live sources → write digest → prepend ledger → render assets
 ```
 
-The automation runs in a **fresh worktree per run** (`new_per_run`), so nothing it
-does leaks into your working copy. The agent reads and writes `output/`, commits,
-and that commit is the deliverable.
+### Why the ledger isn't in `output/`
+
+`output/` is gitignored — those are artifacts, a file per day forever. But the
+automation runs in a **fresh worktree per run**, checking out from git. A ledger
+living in the ignored folder would be invisible to tomorrow's run: empty blocklist,
+same items again. So it sits at `ledger/INDEX.md`, outside `output/`, committed every
+run. `output/test/` is tracked for the same reason — it's the reference example you
+check after changing the tone or the format.
 
 ---
 
@@ -140,11 +188,15 @@ and that commit is the deliverable.
 |---|---|
 | `config/digest.json` | Every knob. Edit this, not the prompt. |
 | `AGENTS.md` | Repo instructions for any agent working here |
+| `styles/` | Voice presets. Pick with `style.tone`. |
 | `skills/daily-digest/SKILL.md` | The digest procedure |
 | `daily-digest/SPEC.md` | Output format template |
 | `daily-digest/catchup-on-launch.ps1` | Login-hook catch-up |
 | `tools/` | Helper scripts (below) |
-| `output/` | `INDEX.md` ledger + one file per run |
+| `ledger/INDEX.md` | Dedup ledger — **tracked** |
+| `output/YYYY-MM-DD.md` | One file per run — **not tracked** |
+| `output/assets/` | Generated PDF + cards — **not tracked** |
+| `output/test/` | Reference example + checklist — **tracked** |
 
 ### Tools
 
@@ -154,6 +206,7 @@ and that commit is the deliverable.
 | `tools/run-digest.ps1` | Fire a run now |
 | `tools/banned-items.ps1` | Print the banned set for the dedup window |
 | `tools/check-staleness.ps1` | Report digest age; fire if stale (`-Force` to always) |
+| `tools/render_assets.py` | Digest markdown → PDF + social cards, locally |
 
 ---
 
@@ -200,6 +253,13 @@ orca automations remove <id> --json             # delete
 checks out from git, so uncommitted files are invisible to the run. `git status`
 should be clean.
 
+**The digest repeated itself.** Check that `ledger/INDEX.md` is committed and still
+exists at the path `digest.indexFile` names. If the ledger ever lands inside the
+gitignored `output/`, every run starts with an empty blocklist.
+
+**`git status` shows daily digests.** It shouldn't — `output/` is ignored on purpose.
+Check `.gitignore` still has `/output/*` followed by `!/output/test/`.
+
 **`orca automations list` reports the automation as an orphan.** It points at a
 project id that no longer resolves — usually because the repo was re-added to Orca.
 Re-create it: `tools\install-automation.ps1`.
@@ -207,5 +267,10 @@ Re-create it: `tools\install-automation.ps1`.
 **Categories come back short.** Working as intended. The rule is never pad. A short
 honest category beats a padded one.
 
-**Nothing gets published to dev.to.** `DEVTO_API_KEY` isn't in the environment the
-automation runs under. Absent key means silent skip by design.
+**The PDF or cards didn't render.** `tools/render_assets.py` needs a Chromium-family
+browser. It looks for Edge/Chrome automatically; set `DIGEST_BROWSER` to point at one
+explicitly. Without it the script writes HTML and warns rather than failing the digest.
+
+**The writing reads like AI.** Check `style.avoid` — those phrases are the fingerprint.
+Then check `style.tone` matches the voice file you expect, and read
+`output/test/example.md` for what good looks like.

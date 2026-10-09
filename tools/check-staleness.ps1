@@ -2,8 +2,8 @@
 .SYNOPSIS
     Report how stale the digest is, and optionally fire a catch-up run.
 .DESCRIPTION
-    Reads the newest date in output/INDEX.md and compares it against
-    config/digest.json -> schedule.catchupAfterHours.
+    Reads the newest date in the ledger at config/digest.json -> digest.indexFile
+    (ledger/INDEX.md) and compares it against schedule.catchupAfterHours.
 
     With -Force it triggers the automation regardless of age. Without it, the
     script is a safe no-op whenever the last digest is fresh enough - which is
@@ -22,11 +22,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $configPath = Join-Path $repoRoot 'config\digest.json'
-$indexPath  = Join-Path $repoRoot 'output\INDEX.md'
 
 $cfg = Get-Content $configPath -Raw | ConvertFrom-Json
 $staleAfterHours = [double] $cfg.schedule.catchupAfterHours
 $automationId    = $cfg.automation.id
+
+# Config-driven, same as tools/banned-items.ps1.
+$indexPath = Join-Path $repoRoot 'ledger\INDEX.md'
+if ($cfg.digest.indexFile) {
+    $indexPath = Join-Path $repoRoot $cfg.digest.indexFile
+}
 
 # Newest row = first date in the ledger, since rows are prepended newest-first.
 $lastRun = $null
