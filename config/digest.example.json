@@ -12,9 +12,9 @@
   ],
 
   "automation": {
-    "id": "e4ccf4d8-b656-4366-94a7-f297d791cf70",
+    "id": "",
     "name": "daily-interest-digest",
-    "$comment": "id is written by tools/install-automation.ps1. It points at a machine-local Orca project; re-run that script if orca reports the automation as orphaned."
+    "$comment": "Left empty on purpose: the id is machine-local and gets rewritten by tools/install-automation.ps1 on install."
   },
 
   "schedule": {
