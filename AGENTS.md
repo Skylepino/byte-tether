@@ -74,10 +74,14 @@ So the ledger lives at `ledger/INDEX.md`, outside `output/`, and is committed ev
 | `output/YYYY-MM-DD.md` | One file per run — **not tracked** |
 | `output/assets/` | Generated PDF + cards — **not tracked** |
 | `output/test/` | QA fixture and reference example — **tracked** |
+| `CONTRIBUTING.md` | Contribution standards — **tracked** |
+| `LICENSE` | MIT — **tracked** |
 
 `output/test/` is committed on purpose. After any change to `config.style`, `styles/` or
 the item format, read `output/test/example.md` and ask whether a real run would still
-look like that. See `output/test/README.md` for the checklist.
+look like that. See `output/test/README.md` for the checklist, and re-render the
+fixture with `python tools/render_assets.py output/test/example.md --outdir output/test`
+if the format actually changed.
 
 ## Repo hygiene
 

@@ -1,6 +1,7 @@
 # Byte-Tether — Daily Interest Digest
 
-A **self-contained daily digest automation**. Once a day, a scheduled agent run
+A **self-contained daily digest automation** built on **Orca**, the agent
+orchestrator. Once a day, a scheduled agent run
 collects the things worth knowing in the AI/agent tooling ecosystem and writes them
 to `output/YYYY-MM-DD.md` — each with a real source URL, who made it, and a concrete
 note on what you'd actually do with it. It then renders a PDF and a set of social
@@ -9,9 +10,30 @@ cards **locally**, which you post by hand.
 Everything is customizable: which agent runs it, when it runs, what topics it
 covers, how many items per topic, and **how it sounds**.
 
+It runs on Orca because Orca gives you the three things a daily job actually needs:
+a scheduler that catches up if the machine was asleep, a fresh worktree per run so
+nothing leaks into your working copy, and a choice of provider per job. The digest
+itself is just markdown and config — if you already orchestrate something else, the
+parts you'd replace are the three `tools/*.ps1` wrappers around `orca automations`.
+
 ---
 
-## Quick start
+## Set this up
+
+### Ask your agent (recommended)
+
+The repo is built so an agent can set it up without being told which files matter.
+`AGENTS.md` states what's authoritative, `skills/daily-digest/SKILL.md` holds the
+procedure, and `config/digest.json` holds every knob.
+
+> Set up the Byte-Tether daily digest in this repo. Read `AGENTS.md` and
+> `skills/daily-digest/SKILL.md` first. Don't change my categories, schedule or
+> tone unless I ask.
+
+Works with opencode, codex, claude, gemini, or anything else that reads files and
+runs commands.
+
+### Or do it yourself
 
 ```powershell
 # 1. Everything needed for a run is already in this folder. Commit it — a
@@ -29,6 +51,8 @@ powershell -File tools\run-digest.ps1
 
 Then re-read [`output/test/example.md`](output/test/example.md) — it's the reference
 output, and it is what a real run should still resemble.
+
+Requires Orca running, and an installed agent CLI (`opencode` by default).
 
 ---
 
@@ -206,6 +230,47 @@ ledger is read *before* anything is selected.
 Run N:   read ledger → build blocklist → verify against live sources → write digest → prepend ledger → render assets
 ```
 
+### For agents
+
+An agent reading this repo should only need these four files, in this order:
+
+| File | Why |
+|---|---|
+| `AGENTS.md` | What's authoritative, and the hard rules. Read first. |
+| `config/digest.json` | Categories, counts, sources, dedup window, tone, audience. |
+| `skills/daily-digest/SKILL.md` | The step-by-step procedure. |
+| `ledger/INDEX.md` | What is banned. Read *before* selecting anything. |
+
+`config/digest.json` wins over `AGENTS.md` whenever they disagree, so a user who
+edits their config never needs to also edit prose.
+
+Two behaviours an agent must not "helpfully" break:
+
+- **Never auto-publish.** No API call, no key, no posting anywhere. The agent renders
+  local files and stops. This is the whole safety model.
+- **Never commit from a dirty tree assumption.** `new_per_run` checks out from git,
+  so an uncommitted `config/digest.json` means the run silently uses the old one.
+
+### For humans
+
+What you actually touch, in order of how often you'll touch it:
+
+| When | Do this |
+|---|---|
+| Wanted a different topic | edit `categories[]` in `config/digest.json` |
+| Wanted a different hour | edit `schedule.rrule`, re-run `install-automation.ps1` |
+| Hated the voice | point `style.tone` at another file in `styles/` |
+| Wanted fewer items | edit `digest.itemsPerCategory` |
+| Stopped getting posts | check `orca automations list --json` for an orphan |
+| Wanted to contribute | [CONTRIBUTING.md](CONTRIBUTING.md) |
+
+You never edit the automation prompt. It is four lines that tell the agent to read
+`AGENTS.md` and the config — that's what makes customization a config edit instead of
+a prompt edit that breaks the next time you change something else.
+
+Contributors and forks are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). MIT
+licensed, see [LICENSE](LICENSE).
+
 ### Why the ledger isn't in `output/`
 
 `output/` is gitignored — those are artifacts, a file per day forever. But the
@@ -224,6 +289,7 @@ check after changing the tone or the format.
 | `config/digest.json` | Every knob. Edit this, not the prompt. |
 | `AGENTS.md` | Repo instructions for any agent working here |
 | `styles/` | Voice presets. Pick with `style.tone`. |
+| `CONTRIBUTING.md` | How to contribute; also the prompt to hand your own agent |
 | `skills/daily-digest/SKILL.md` | The digest procedure |
 | `daily-digest/SPEC.md` | Output format template |
 | `daily-digest/catchup-on-launch.ps1` | Login-hook catch-up |
