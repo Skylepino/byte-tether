@@ -39,13 +39,34 @@ $prompt = @(
     'Never list an item you did not actually fetch from a live source.'
 ) -join ' '
 
+# Patch automation.id in place rather than re-serializing, so the hand-written
+# "$comment" keys and formatting in digest.json survive untouched. The current
+# value may be "", null, or a stale uuid - match all three.
+function _WriteAutomationId($id) {
+    $text = Get-Content $configPath -Raw
+    $patched = $text -replace '("id"\s*:\s*)("[^"]*"|null)', ('$1"' + $id + '"')
+    if ($patched -eq $text) {
+        Write-Error 'Could not locate automation.id in config/digest.json. Nothing was written.'
+        exit 1
+    }
+    Set-Content -Path $configPath -Value $patched -Encoding utf8
+    Write-Output "Wrote automation.id into config/digest.json"
+}
+
 # Reuse an existing automation when one is already pointed at this repo, so
 # re-running this after a config change updates it instead of creating a second
 # one that fires at the same hour every day. -Recreate opts out.
 if (-not $Recreate) {
+    # Orca reports paths with forward slashes ("C:/code/..."), $repoRoot has
+    # backslashes. Compare normalized, trailing-slash-insensitive.
+    function _samePath($a, $b) {
+        if (-not $a -or -not $b) { return $false }
+        $n = { param($p) (($p -replace '\\', '/').TrimEnd('/')).ToLowerInvariant() }
+        (& $n $a) -eq (& $n $b)
+    }
     $existing = orca automations list --json | ConvertFrom-Json |
         Select-Object -ExpandProperty result | Select-Object -ExpandProperty automations |
-        Where-Object { $_.name -eq $Name -and $_.runContext.path -eq $repoRoot } |
+        Where-Object { $_.name -eq $Name -and (_samePath $_.runContext.path $repoRoot) } |
         Select-Object -First 1
 
     if ($existing) {
@@ -74,6 +95,7 @@ if (-not $Recreate) {
         $auto = $editResult.result.automation
         Write-Output ''
         Write-Output "Updated: $($auto.id)"
+        _WriteAutomationId $auto.id
         Write-Output 'Verify:  orca automations show ' + $auto.id + ' --json'
         exit 0
     }
@@ -115,17 +137,7 @@ Write-Output ''
 Write-Output "Created: $($auto.id)"
 
 # Write the id back so tools\run-digest.ps1 and check-staleness.ps1 can find it.
-# Patch the id in place rather than re-serializing, so the hand-written
-# "$comment" keys and formatting in digest.json survive untouched. The value may
-# be "", null, or a stale uuid - match all three.
-$text = Get-Content $configPath -Raw
-$patched = $text -replace '("id"\s*:\s*)("[^"]*"|null)', ('$1"' + $auto.id + '"')
-if ($patched -eq $text) {
-    Write-Error 'Could not locate automation.id in config/digest.json. Nothing was written.'
-    exit 1
-}
-Set-Content -Path $configPath -Value $patched -Encoding utf8
+_WriteAutomationId $auto.id
 
-Write-Output "Wrote automation.id into config/digest.json"
 Write-Output ''
 Write-Output 'Verify:  orca automations show ' + $auto.id + ' --json'
