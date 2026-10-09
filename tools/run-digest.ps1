@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Fire the digest automation now and report where it landed.
 .EXAMPLE
@@ -10,7 +10,8 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$configPath = Join-Path $repoRoot 'config\digest.json'
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$configPath = Resolve-Config -RepoRoot $repoRoot
 
 $cfg = Get-Content $configPath -Raw | ConvertFrom-Json
 $automationId = $cfg.automation.id

@@ -6,6 +6,10 @@
 # fresh worktree from git on every run, so an ignored ledger means every run starts
 # with an empty blocklist and the digest repeats itself. Ledger lives in /ledger/.
 
+# Your working config: machine paths, automation id, your stack. Never public.
+# Commit config/digest.json (the template), not this. See config/digest.example.json.
+/config/digest.local.json
+
 # Local scratch
 *.tmp
 *.bak

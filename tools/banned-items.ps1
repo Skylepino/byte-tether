@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Print every item inside the dedup window. These are BANNED.
 .DESCRIPTION
@@ -17,7 +17,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$configPath = Join-Path $repoRoot 'config\digest.json'
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$configPath = Resolve-Config -RepoRoot $repoRoot
 $indexPath  = Join-Path $repoRoot 'ledger\INDEX.md'
 
 if (-not (Test-Path $configPath)) {

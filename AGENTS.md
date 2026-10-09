@@ -11,13 +11,17 @@ days never repeat each other. It also renders a PDF and a set of social cards
 
 ## Read these first, in this order
 
-1. `config/digest.json` — every knob: schedule, agent, topics, counts, dedup window, **tone**
+1. `config/digest.local.json`, falling back to `config/digest.json` — every knob:
+   schedule, agent, topics, counts, dedup window, **tone**
 2. `skills/daily-digest/SKILL.md` — the procedure
 3. `output/test/example.md` — what good output looks like right now
 4. `ledger/INDEX.md` — the dedup ledger, read before picking anything
 
-Nothing else is authoritative. If this file and `config/digest.json` disagree,
-`config/digest.json` wins.
+`config/digest.local.json` is gitignored and holds one person's setup;
+`config/digest.example.json` is a committed worked example. Resolve exactly the
+way `tools/lib.ps1` does — local first, template second.
+
+Nothing else is authoritative. If this file and the config disagree, the config wins.
 
 ## The one rule that matters
 
@@ -64,7 +68,9 @@ So the ledger lives at `ledger/INDEX.md`, outside `output/`, and is committed ev
 
 | Path | What it is |
 |---|---|
-| `config/digest.json` | The knobs. Edit this, not the prompt. |
+| `config/digest.json` | The knobs. The template; edit this to change the default. |
+| `config/digest.local.json` | Your working config — **gitignored**, wins if present |
+| `config/digest.example.json` | A real tuned config, as a worked example |
 | `styles/<tone>.md` | Voice. Pick by changing `style.tone`. |
 | `skills/daily-digest/SKILL.md` | The procedure you follow |
 | `daily-digest/SPEC.md` | Output format spec, long form |

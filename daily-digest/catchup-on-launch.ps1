@@ -10,7 +10,8 @@ tools/check-staleness.ps1 is the CLI equivalent and does the same thing.
 $ErrorActionPreference = 'SilentlyContinue'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$configPath = Join-Path $repoRoot 'config\digest.json'
+. (Join-Path $repoRoot 'tools\lib.ps1')
+$configPath = Resolve-Config -RepoRoot $repoRoot
 if (-not (Test-Path $configPath)) { exit 0 }
 
 $cfg = Get-Content $configPath -Raw | ConvertFrom-Json

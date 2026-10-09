@@ -25,18 +25,32 @@ Ask for something like:
 > tone unless I ask.
 
 The repo is set up so an agent can do this without being told which files matter:
-`AGENTS.md` says what is authoritative, and `config/digest.json` holds every knob.
+`AGENTS.md` says what is authoritative, and your `config/digest.local.json` holds
+every knob.
+
+To fork it, copy the example config first — that's your working copy, and it stays
+out of git:
+
+```powershell
+copy config\digest.example.json config\digest.local.json
+```
 
 ## What a good PR looks like
 
 | Change | Ask first? |
 |---|---|
-| New category, source or keyword in `config/digest.json` | No — that is customization, the point |
+| New category, source or keyword in your **local** config | No — that's customization, the point |
+| A new category in the committed template `config/digest.json` | No |
 | New tone in `styles/` | No |
 | A fix to a script in `tools/` | No |
 | A new dependency | **Yes** — `tools/render_assets.py` is stdlib-only on purpose |
 | Changing the output format | **Yes** — open a discussion first |
 | Relaxing a hard rule in `AGENTS.md` or `SKILL.md` | **Yes** |
+| Adding a third config file | **Yes** — two is a workflow, three is a fork problem |
+
+**Never commit `config/digest.local.json`.** It's gitignored for a reason: it holds
+your stack, your machine and your automation id. If you change the committed template,
+make the change in both and keep the example realistic.
 
 **If you change the format, the tone, or the config, regenerate the QA fixture:**
 

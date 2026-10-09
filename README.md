@@ -40,12 +40,16 @@ runs commands.
 #    new_per_run automation checks out from git, so uncommitted = invisible.
 git add -A; git commit -m "digest tooling"
 
-# 2. Create the automation from config/digest.json.
+# 2. Make it yours. digest.local.json is gitignored, so your stack, your
+#    machine and your automation id stay private.
+copy config\digest.example.json config\digest.local.json
+
+# 3. Create the automation from your local config.
 #    Safe to re-run: it updates an existing automation for this repo rather
 #    than making a second one that fires at the same hour every day.
 powershell -File tools\install-automation.ps1
 
-# 3. Fire one now
+# 4. Fire one now
 powershell -File tools\run-digest.ps1
 ```
 
@@ -54,12 +58,26 @@ output, and it is what a real run should still resemble.
 
 Requires Orca running, and an installed agent CLI (`opencode` by default).
 
+### The three config files
+
+| File | Tracked? | What it is |
+|---|---|---|
+| `config/digest.json` | yes | The **template**. Neutral defaults, committed, safe to fork. |
+| `config/digest.local.json` | **no** | **Yours.** Wins if present. Never leaves your machine. |
+| `config/digest.example.json` | yes | A real tuned config — the author's own setup, as a worked example. |
+
+Every script resolves the local file first and falls back to the template, so
+forking this repo gets you a working digest without publishing anything about
+your machine. `tools/install-automation.ps1` writes the automation id into
+whichever file it resolved, so on a fresh clone it lands in the template and warns
+you to move it local.
+
 ---
 
 ## Customize it
 
-**All customization lives in [`config/digest.json`](config/digest.json).** Edit it,
-commit, done. The automation prompt never needs to change.
+**All customization lives in `config/`.** Edit your `config/digest.local.json`
+and the next run picks it up. The automation prompt never changes.
 
 | Knob | What it does |
 |---|---|
@@ -231,7 +249,7 @@ the intent.
 ## How it works
 
 ```
-config/digest.json      ← all the knobs
+config/digest.local.json  ← your knobs (falls back to the template)
       ↓
 AGENTS.md               ← repo instructions, loaded first by any agent
       ↓
@@ -261,11 +279,11 @@ An agent reading this repo should only need these four files, in this order:
 | File | Why |
 |---|---|
 | `AGENTS.md` | What's authoritative, and the hard rules. Read first. |
-| `config/digest.json` | Categories, counts, sources, dedup window, tone, audience. |
+| `config/digest.local.json` | Categories, counts, sources, dedup window, tone, audience. |
 | `skills/daily-digest/SKILL.md` | The step-by-step procedure. |
 | `ledger/INDEX.md` | What is banned. Read *before* selecting anything. |
 
-`config/digest.json` wins over `AGENTS.md` whenever they disagree, so a user who
+`config/digest.local.json` wins over `AGENTS.md` whenever they disagree, so a user who
 edits their config never needs to also edit prose.
 
 Two behaviours an agent must not "helpfully" break:
@@ -273,7 +291,10 @@ Two behaviours an agent must not "helpfully" break:
 - **Never auto-publish.** No API call, no key, no posting anywhere. The agent renders
   local files and stops. This is the whole safety model.
 - **Never commit from a dirty tree assumption.** `new_per_run` checks out from git,
-  so an uncommitted `config/digest.json` means the run silently uses the old one.
+  so an uncommitted *template* change means the run silently uses the old one. Your
+  `digest.local.json` is gitignored, so edits there are local-only by design — which is
+  also why the automation reads the file at run time instead of baking the config into
+  its prompt.
 
 ### For humans
 
@@ -281,7 +302,7 @@ What you actually touch, in order of how often you'll touch it:
 
 | When | Do this |
 |---|---|
-| Wanted a different topic | edit `categories[]` in `config/digest.json` |
+| Wanted a different topic | edit `categories[]` in your `config/digest.local.json` |
 | Wanted a different hour | edit `schedule.rrule`, re-run `install-automation.ps1` |
 | Hated the voice | point `style.tone` at another file in `styles/` |
 | Wanted fewer items | edit `digest.itemsPerCategory` |
@@ -310,7 +331,9 @@ check after changing the tone or the format.
 
 | Path | What it is |
 |---|---|
-| `config/digest.json` | Every knob. Edit this, not the prompt. |
+| `config/digest.json` | The template. Committed, neutral defaults. |
+| `config/digest.local.json` | Your working config. Gitignored, wins if present. |
+| `config/digest.example.json` | A real tuned config, as a worked example. |
 | `AGENTS.md` | Repo instructions for any agent working here |
 | `styles/` | Voice presets. Pick with `style.tone`. |
 | `CONTRIBUTING.md` | How to contribute; also the prompt to hand your own agent |
@@ -332,6 +355,10 @@ check after changing the tone or the format.
 | `tools/banned-items.ps1` | Print the banned set for the dedup window |
 | `tools/check-staleness.ps1` | Report digest age; fire if stale (`-Force` to always) |
 | `tools/render_assets.py` | Digest markdown → PDF + social cards, locally |
+| `tools/lib.ps1` | Shared helper — which config file is authoritative |
+
+Every `.ps1` in `tools/` dot-sources `lib.ps1` and reads `config/digest.local.json`
+when it exists, falling back to the committed template.
 
 ---
 
@@ -368,7 +395,7 @@ orca automations edit <id> --time 08:00 --json  # reschedule
 orca automations remove <id> --json             # delete
 ```
 
-`automation.id` lives in `config/digest.json` so the scripts don't hardcode it.
+`automation.id` lives in your `config/digest.local.json` so the scripts don't hardcode it.
 
 ---
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Report how stale the digest is, and optionally fire a catch-up run.
 .DESCRIPTION
@@ -21,7 +21,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$configPath = Join-Path $repoRoot 'config\digest.json'
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$configPath = Resolve-Config -RepoRoot $repoRoot
 
 $cfg = Get-Content $configPath -Raw | ConvertFrom-Json
 $staleAfterHours = [double] $cfg.schedule.catchupAfterHours

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Create (or repair) the digest automation from config/digest.json.
 .DESCRIPTION
@@ -26,7 +26,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$configPath = Join-Path $repoRoot 'config\digest.json'
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$configPath = Resolve-Config -RepoRoot $repoRoot
 
 $cfg = Get-Content $configPath -Raw | ConvertFrom-Json
 if (-not $Name) { $Name = $cfg.automation.name }
@@ -50,7 +51,11 @@ function _WriteAutomationId($id) {
         exit 1
     }
     Set-Content -Path $configPath -Value $patched -Encoding utf8
-    Write-Output "Wrote automation.id into config/digest.json"
+    $which = Split-Path -Leaf $configPath
+    Write-Output "Wrote automation.id into config/$which"
+    if ($which -eq 'digest.json') {
+        Write-Warning 'That is the committed TEMPLATE. Copy config\digest.example.json to config\digest.local.json and re-run, so your id stays out of git.'
+    }
 }
 
 # Reuse an existing automation when one is already pointed at this repo, so

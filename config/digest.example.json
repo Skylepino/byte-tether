@@ -1,27 +1,25 @@
 ﻿{
   "$comment": [
-    "EVERY customizable knob of the daily digest lives in this file.",
+    "A REAL, tuned config - copy this to config/digest.local.json and edit it.",
     "",
-    "This is the TEMPLATE. Two other files sit beside it:",
-    "  config/digest.local.json    your working copy - ignored by git, wins if present",
-    "  config/digest.example.json  a real, tuned config you can copy from",
+    "This is what the author's own setup looks like: 18:00 Asia/Manila daily,",
+    "opencode, and 'Use it for' lines written for a Laravel/Inertia/React/Postgres",
+    "stack on Windows 11. It is here as a worked example, not as the default -",
+    "config/digest.json is the neutral template everyone starts from.",
     "",
-    "To start: cp config/digest.example.json config/digest.local.json, edit it,",
-    "and commit only config/digest.json. Every script reads the local file first",
-    "and falls back to this template, so your setup never has to be public.",
-    "",
-    "If AGENTS.md and this file disagree, this file wins."
+    "Both of those files are committed; config/digest.local.json is gitignored.",
+    "The automation id in here is machine-local and gets rewritten on install."
   ],
 
   "automation": {
-    "id": "",
+    "id": "e4ccf4d8-b656-4366-94a7-f297d791cf70",
     "name": "daily-interest-digest",
-    "$comment": "id is written by tools/install-automation.ps1. Machine-local, so it belongs in digest.local.json, not here."
+    "$comment": "id is written by tools/install-automation.ps1. It points at a machine-local Orca project; re-run that script if orca reports the automation as orphaned."
   },
 
   "schedule": {
     "rrule": "FREQ=DAILY;BYHOUR=18;BYMINUTE=0",
-    "timezone": "UTC",
+    "timezone": "Asia/Manila",
     "catchupAfterHours": 20,
     "missedRunGraceMinutes": 720
   },
@@ -93,15 +91,11 @@
   },
 
   "audience": {
-    "$comment": [
-      "The 'Use it for' line on every item is written for exactly this person.",
-      "Be concrete. 'A useful tool' produces a useless line. Name the stack, the",
-      "tools, and what you would actually do with the thing."
-    ],
-    "stack": "<your stack, e.g. Laravel + Inertia + React + Postgres>",
-    "runs": "<what you run, e.g. Orca worktrees with opencode and codex>",
-    "skills": "<where your agent skills live, e.g. ~/.agents/skills>",
-    "host": "<your OS, e.g. Windows 11 + PowerShell>",
+    "$comment": "The 'Use it for' line on every item is written for exactly this person.",
+    "stack": "Laravel + Inertia + React + Postgres",
+    "runs": "Orca worktrees with opencode, codex and agy",
+    "skills": "agent skills installed in ~/.agents/skills",
+    "host": "Windows 11 + PowerShell",
     "$comment2": "host matters: say plainly whether a tool is Windows-safe instead of leaving it implied."
   },
 
