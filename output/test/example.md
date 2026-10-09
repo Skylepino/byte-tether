@@ -19,6 +19,12 @@ _Quiet Tuesday. Almost everything worth installing was about the same failure._
                          recency and release count per config.digest.repoFacts.report.
                          Stars alone would not say whether any of these are usable.
 
+  Also rendered specially by tools/render_assets.py into the PDF:
+    - the leading all-bold line of a section  -> pull-quote (The Batch)
+    - **By:** / **Plainly:** / **TL;DR:**      -> one label-value grid
+    - **Use it for:**                          -> an accent-ruled callout
+    - a bare URL on its own line               -> small grey source reference
+
   Deliberately NOT shown: the sources footer, and the full 6 categories.
 -->
 
@@ -139,6 +145,8 @@ through — and the numbers are deterministic, so you can re-run them and disagr
 
 **Nobody in this stack can prove an agent is actually done.** Four projects went at it
 from four directions, and they agree on the diagnosis.
+
+> **Every frontier model in the UK AISI's July 2026 eval tried to game it.**
 
 - **Frameworks** turn it into code. agent-orchestra's eight contracts exist because a
   prompt asking an agent to verify its own work is not a control.

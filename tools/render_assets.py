@@ -23,6 +23,7 @@ wkhtmltopdf, no ImageMagick, no flameshot.
 from __future__ import annotations
 
 import argparse
+import base64
 import html
 import json
 import os
@@ -31,6 +32,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
 from pathlib import Path
 
 # --------------------------------------------------------------------------- #
@@ -119,6 +121,15 @@ _ITALIC_US = re.compile(r"(?<!\w)_([^_\n]+)_(?!\w)")
 _LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 # (?<!=") so it does not re-wrap a URL that _LINK just put inside an href="..."
 _BARE_URL = re.compile(r'(?<![=\w/@.\-"])(https?://[^\s<>)\]]+[^\s<>)\].,;:!?])')
+# A paragraph that is nothing but bold text is the in-depth lead sentence.
+_WHOLE_BOLD = re.compile(r"^\*\*([^*]+)\*\*$")
+# "![alt](path)" - illustrations only, local paths, so a render stays offline.
+_IMAGE = re.compile(r"^!\[([^\]]*)\]\(([^)\s]+)\)\s*$")
+# The three label-value lines the digest puts under an in-depth hook.
+# Note the colon sits inside the bold: **By:** not **By**:.
+_FACT = re.compile(r"^\*\*(By|Author|Plainly|TL;DR|TLDR):\*\*\s*(.*)$")
+# The "what I'd use this for" line.
+_USE = re.compile(r"^\*\*(Use it for|Use for):\*\*\s*(.*)$")
 
 
 def inline(text: str) -> str:
@@ -191,9 +202,23 @@ def md_to_html_body(md: str) -> str:
         m = re.match(r"^(#{1,6})\s+(.*)$", stripped)
         if m:
             level = len(m.group(1))
-            out.append(f"<h{level}>{inline(m.group(2).strip())}</h{level}>")
+            # Sections get an id so The Batch-style overview can link to them.
+            anchor = f' id="sec-{slugify(m.group(2).strip())}"' if level == 2 else ""
+            out.append(f"<h{level}{anchor}>{inline(m.group(2).strip())}</h{level}>")
             i += 1
             continue
+
+        # --- illustration ---
+        if stripped.startswith("!["):
+            im = _IMAGE.match(stripped)
+            if im:
+                alt, src = im.group(1), im.group(2)
+                fig = f'<figure><img src="{html.escape(src, quote=True)}" alt="{html.escape(alt, quote=True)}">'
+                if alt:
+                    fig += f"<figcaption>{inline(alt)}</figcaption>"
+                out.append(fig + "</figure>")
+                i += 1
+                continue
 
         # --- blockquote (consecutive > lines) ---
         if stripped.startswith(">"):
@@ -201,7 +226,12 @@ def md_to_html_body(md: str) -> str:
             while i < n and lines[i].strip().startswith(">"):
                 buf.append(re.sub(r"^\s*>\s?", "", lines[i]))
                 i += 1
-            out.append(f"<blockquote>{inline(' '.join(x.strip() for x in buf))}</blockquote>")
+            text = " ".join(x.strip() for x in buf)
+            # A blockquote that is only bold text is a pull-quote (The Batch),
+            # not an aside. Anything else keeps the quiet aside styling.
+            cls = "pq" if _WHOLE_BOLD.match(text) else ""
+            attr = f' class="{cls}"' if cls else ""
+            out.append(f"<blockquote{attr}>{inline(text)}</blockquote>")
             continue
 
         # --- table ---
@@ -248,8 +278,33 @@ def md_to_html_body(md: str) -> str:
                     nested = []
                     items.append(body_txt)
                 i += 1
-            lis = "".join(f"<li>{inline(x)}</li>" for x in items)
-            out.append(f"<ul>{lis}</ul>")
+            facts: list[str] = []
+            uses: list[str] = []
+            plain: list[str] = []
+            for x in items:
+                fm = _FACT.match(x)
+                if fm:
+                    facts.append(
+                        f'<div><span class="k">{html.escape(fm.group(1))}</span> '
+                        f"{inline(fm.group(2))}</div>"
+                    )
+                    continue
+                um = _USE.match(x)
+                if um:
+                    uses.append(
+                        f'<p class="use"><span class="k">{html.escape(um.group(1))}:</span> '
+                        f"{inline(um.group(2))}</p>"
+                    )
+                    continue
+                plain.append(x)
+
+            if facts:
+                out.append('<div class="facts">' + "".join(facts) + "</div>")
+            for u in uses:
+                out.append(u)
+            if plain:
+                lis = "".join(f"<li>{inline(x)}</li>" for x in plain)
+                out.append(f'<ul class="compact">{lis}</ul>')
             continue
 
         # --- paragraph (merge soft-wrapped lines) ---
@@ -262,7 +317,25 @@ def md_to_html_body(md: str) -> str:
                 break
             buf.append(lines[i].strip())
             i += 1
-        out.append(f"<p>{inline(' '.join(buf))}</p>")
+        para = " ".join(buf)
+        # "Use it for:" often stands alone as a paragraph rather than a list item.
+        um = _USE.match(para)
+        if um:
+            out.append(
+                f'<p class="use"><span class="k">{html.escape(um.group(1))}:</span> '
+                f"{inline(um.group(2))}</p>"
+            )
+            continue
+        # A bare URL on its own line is a source reference, not prose.
+        if _BARE_URL.fullmatch(para):
+            out.append(f'<p class="srcurl">{inline(para)}</p>')
+            continue
+        # A paragraph that is entirely bold is the in-depth item's lead sentence.
+        hb = _WHOLE_BOLD.match(para)
+        if hb:
+            out.append(f'<p class="hook">{inline(hb.group(1))}</p>')
+            continue
+        out.append(f"<p>{inline(para)}</p>")
 
     return "\n".join(out)
 
@@ -372,55 +445,134 @@ def extract_structure(md: str) -> dict:
 
 DOC_CSS = """
 :root {
-  --ink:#14161a; --muted:#5d6673; --line:#e3e7ec; --accent:#3b5bdb;
-  --card:#f6f8fa; --code-bg:#f0f2f5;
+  --ink:#14161a; --muted:#5d6673; --faint:#8b95a3; --line:#e3e7ec; --accent:#3b5bdb;
+  --card:#f6f8fa; --code-bg:#f0f2f5; --quote:#11161d;
+  /* Serif for prose, sans for furniture. Import AI reads as a paper, not a feed. */
+  --serif: Georgia, "Iowan Old Style", Charter, "Palatino Linotype", "Book Antiqua", serif;
+  --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --measure: 34em;
 }
 * { box-sizing: border-box; }
 body {
-  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-  color: var(--ink); background:#fff; line-height:1.62;
-  font-size: 11.2pt; margin:0; padding: 0 2.2em 3em;
+  font-family: var(--serif);
+  color: var(--ink); background:#fff; line-height:1.68;
+  font-size: 10.6pt; margin:0 auto; padding: 0;
+  max-width: var(--measure);
 }
-h1 {
-  font-size: 24pt; line-height:1.2; letter-spacing:-.02em;
-  margin: 0 0 .25em; padding-bottom:.45em; border-bottom: 3px solid var(--accent);
+
+/* ---- masthead ---------------------------------------------------------- */
+.masthead { border-bottom: 3px solid var(--accent); padding-bottom: 1.1em; margin-bottom: 2.2em; }
+.kicker {
+  font-family: var(--sans); font-size: 7.6pt; font-weight: 700; letter-spacing:.16em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 .9em;
 }
+.masthead h1 {
+  font-size: 27pt; line-height:1.12; letter-spacing:-.021em; font-weight: 700;
+  margin: 0 0 .3em; border: 0; padding: 0;
+}
+.deck {
+  font-size: 13.4pt; line-height:1.42; color: var(--muted); font-style: italic;
+  margin: 0 0 1.1em; padding: 0;
+}
+.colophon {
+  font-family: var(--sans); font-size: 7.4pt; letter-spacing:.1em; text-transform: uppercase;
+  color: var(--faint); margin: 0;
+}
+
+/* ---- The Batch style overview: one line per section, scannable ----------- */
+.overview {
+  background: var(--card); border:1px solid var(--line); border-radius: 8px;
+  padding: 1.1em 1.4em .6em; margin: 0 0 2.4em;
+}
+.overview-h {
+  font-family: var(--sans); font-size: 7.6pt; font-weight: 700; letter-spacing:.16em;
+  text-transform: uppercase; color: var(--faint); margin: 0 0 .7em;
+}
+.overview ol { margin:0; padding-left: 1.5em; }
+.overview li { margin:.34em 0; font-size: 10pt; }
+.overview .n { font-family: var(--sans); font-size: 8.4pt; color: var(--faint); }
+.overview a { border:0; color: var(--ink); }
+
+/* ---- section heads ----------------------------------------------------- */
 h2 {
-  font-size: 15pt; letter-spacing:-.01em; margin: 2.4em 0 .7em;
-  padding-bottom:.28em; border-bottom:1px solid var(--line);
+  font-size: 15.5pt; letter-spacing:-.012em; font-weight:700;
+  margin: 2.6em 0 .8em; padding-bottom:.3em; border-bottom:1px solid var(--line);
 }
-h3 { font-size: 12.4pt; margin: 1.9em 0 .4em; letter-spacing:-.005em; }
-h4 { font-size: 11pt; margin: 1.5em 0 .3em; color:var(--muted); }
-p { margin: .55em 0; }
-ul { margin: .4em 0 .8em; padding-left: 1.35em; }
-li { margin: .34em 0; }
+h3 {
+  font-family: var(--sans); font-size: 9.6pt; font-weight: 700; letter-spacing:.01em;
+  margin: 2em 0 .35em;
+}
+h4 { font-size: 10.6pt; margin: 1.5em 0 .3em; color:var(--muted); }
+p { margin: .6em 0; }
+
+/* ---- item furniture ---------------------------------------------------- */
+.hook {                       /* the in-depth lead sentence - Import AI style */
+  font-size: 12.6pt; line-height:1.42; font-weight: 700; margin: .1em 0 .5em;
+}
+.facts {                     /* By / Plainly / TL;DR as a label-value grid */
+  font-family: var(--sans); font-size: 8.6pt; line-height:1.6;
+  margin: .5em 0 .9em; padding: .55em .8em;
+  background: var(--card); border-left: 2px solid var(--accent); border-radius: 0 5px 5px 0;
+}
+.facts div { margin: .16em 0; }
+.facts .k { color: var(--faint); letter-spacing:.06em; text-transform: uppercase; font-weight:700; font-size:7.6pt; }
+.use {
+  font-family: var(--sans); font-size: 9.4pt; line-height:1.6;
+  margin: .9em 0 1.1em; padding-left:.85em; border-left:2px solid var(--accent);
+}
+.use .k { font-weight:700; letter-spacing:.02em; }
+.srcurl { font-family: var(--sans); font-size: 8.2pt; margin: -.6em 0 1.6em; word-break: break-all; }
+.srcurl a { color: var(--faint); border:0; }
+
+ul, ol { margin: .4em 0 .9em; padding-left: 1.4em; }
+li { margin: .36em 0; }
 li > ul { margin: .3em 0 .2em; }
+.compact { font-size: 10pt; }   /* the run of short items under an in-depth one */
+
 code {
   font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
-  font-size: .88em; background: var(--code-bg);
+  font-size: .87em; background: var(--code-bg);
   padding: .1em .38em; border-radius: 4px; border: 1px solid #e6e9ed;
 }
-pre { background:#11161d; color:#e6edf3; padding: .9em 1.1em; border-radius: 8px; overflow-x:auto; }
+pre { background:#11161d; color:#e6edf3; padding: .9em 1.1em; border-radius: 8px; overflow-x:auto;
+      font-family: "Cascadia Mono", Consolas, monospace; font-size: 8.6pt; line-height:1.5; }
 pre code { background:none; border:none; color:inherit; padding:0; }
-a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,91,219,.3); }
-a:hover { border-bottom-color: var(--accent); }
-strong { font-weight: 650; }
-hr { border:0; border-top:1px solid var(--line); margin: 2.2em 0; }
-blockquote {
-  margin: 1em 0; padding: .75em 1.1em; background: var(--card);
-  border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; color: #333a45;
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(59,91,219,.28); }
+strong { font-weight: 700; }
+hr { border:0; border-top:1px solid var(--line); margin: 2.4em 0; }
+
+/* ---- The Batch style pull-quote ---------------------------------------- */
+blockquote.pq {
+  margin: 1.7em 0; padding: 1.1em 0; background: none;
+  border: 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line);
+  border-radius: 0; color: var(--quote); text-align: center;
+  font-size: 13pt; line-height:1.45; font-style: italic;
 }
+blockquote.pq p { margin: 0; }
+/* any other blockquote stays a plain aside */
+blockquote { margin: 1em 0; padding: .75em 1.1em; background: var(--card);
+             border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; color:#333a45; }
 blockquote p { margin: .3em 0; }
-table { border-collapse: collapse; width:100%; margin:1em 0; font-size: 9.6pt; }
+
+/* ---- illustrations ----------------------------------------------------- */
+figure { margin: 1.5em 0; }
+figure img { display:block; width:100%; border-radius: 7px; }
+figcaption {
+  font-family: var(--sans); font-size: 7.8pt; color: var(--faint);
+  margin-top: .5em; letter-spacing:.03em;
+}
+
+table { border-collapse: collapse; width:100%; margin:1em 0; font-family: var(--sans); font-size: 8.6pt; }
 th, td { border:1px solid var(--line); padding: .42em .6em; text-align:left; vertical-align:top; }
 th { background: var(--card); font-weight:650; }
 td:first-child, th:first-child { white-space: nowrap; }
-@page { size: A4; margin: 15mm 13mm; }
+
+@page { size: A4; margin: 16mm 15mm; }
 @media print {
-  body { font-size: 10pt; padding: 0; }
+  body { font-size: 10.2pt; }
   h2 { page-break-after: avoid; }
-  h3, h4 { page-break-after: avoid; }
-  li, blockquote { page-break-inside: avoid; }
+  h3, h4, .hook { page-break-after: avoid; }
+  .facts, .use, li, blockquote, figure { page-break-inside: avoid; }
   a { color: var(--ink); border-bottom-color:#ccd2da; }
 }
 """
@@ -475,6 +627,72 @@ def wrap_document(title: str, body: str, css: str) -> str:
     )
 
 
+def _data_uri(png: Path) -> str:
+    """Inline a PNG so the PDF render needs no file:// or network access."""
+    return "data:image/png;base64," + base64.b64encode(png.read_bytes()).decode("ascii")
+
+
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+
+
+def _strip_front_matter(md: str) -> str:
+    """Drop the H1, the mood line and HTML comments - the masthead renders them."""
+    md = _HTML_COMMENT.sub("", md)
+    lines = md.replace("\r\n", "\n").split("\n")
+    for i, raw in enumerate(lines):
+        if re.match(r"^##\s+", raw.strip()):
+            return "\n".join(lines[i:])
+    return md
+
+
+def build_document(md: str, struct: dict, issue: str, date: str,
+                   images: dict[str, Path]) -> tuple[str, str]:
+    """Masthead + scannable overview + body. Returns (title, html)."""
+    title = struct["title"] or "Daily Interest Digest"
+    mood = struct["mood"]
+
+    head = [
+        '<header class="masthead">',
+        f'<p class="kicker">{html.escape(issue)}</p>',
+        f"<h1>{inline(title)}</h1>",
+    ]
+    if mood:
+        head.append(f'<p class="deck">{inline(mood)}</p>')
+    head.append(f'<p class="colophon">{html.escape(date)}</p>')
+    head.append("</header>")
+
+    # One line per section, TLDR-shaped: enough to decide where to start reading.
+    # This is the only place the digest gets TLDR's scannability; the body below
+    # stays Import AI dense.
+    cats = [c for c in struct["categories"] if c["name"].lower() != "thread of the day"]
+    if cats:
+        rows = []
+        for c in cats:
+            n = len(c["items"])
+            lead = c["hook"] or f"{n} item{'s' if n != 1 else ''}."
+            anchor = f'sec-{slugify(c["name"])}'
+            rows.append(
+                f'<li><span class="n">{n}</span> '
+                f'<a href="#{anchor}">{html.escape(c["name"])}</a> — {inline(lead)}</li>'
+            )
+        head.append(
+            '<section class="overview"><p class="overview-h">In this issue</p><ol>'
+            + "".join(rows)
+            + "</ol></section>"
+        )
+
+    body = md_to_html_body(_strip_front_matter(md))
+    # The lead illustration goes under the masthead, ahead of the overview.
+    if "cover" in images:
+        body = (
+            f'<figure><img src="{_data_uri(images["cover"])}" alt=""></figure>' + body
+        )
+
+    # The Thread section already renders as a normal section - no colophon repeat.
+    html_doc = "".join(head) + body
+    return title, wrap_document(title, html_doc, DOC_CSS)
+
+
 def build_card(kicker: str, headline: str, sub: str, chips: list[str],
                footer: str, date: str) -> str:
     chip_html = "".join(f'<div class="chip">{html.escape(c)}</div>' for c in chips[:6])
@@ -503,6 +721,50 @@ def date_of(path: Path) -> str:
         return m.group(1)
     m = re.search(r"(\d{4}-\d{2}-\d{2})", path.read_text(encoding="utf-8", errors="replace")[:600])
     return m.group(1) if m else ""
+
+
+def issue_no(struct: dict, date: str) -> str:
+    """Import AI numbers its issues. Derive the number from the digest's own age."""
+    ledger = Path(__file__).resolve().parent.parent / "ledger" / "INDEX.md"
+    days: set[str] = set()
+    if ledger.exists():
+        text = ledger.read_text(encoding="utf-8", errors="replace")
+        days = set(re.findall(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|", text, re.M))
+    if date and date not in days:
+        days.add(date)          # this run hasn't been written to the ledger yet
+    return f"Issue {len(days)}" if days else "Daily Interest Digest"
+
+
+_ILLUSTRATION_PROMPT = (
+    "Editorial illustration for a technical newsletter. Muted two-colour risograph "
+    "style, limited palette of deep navy, warm cream and one accent. Flat geometric "
+    "shapes, subtle paper grain, generous negative space. No text, no words, no "
+    "letters, no logos. Aspect ratio {w}:{h}."
+)
+
+
+def generate_illustration(prompt_text: str, out_png: Path, w: int, h: int,
+                          api_key: str) -> bool:
+    """One illustration via the OpenAI images API. Returns False on any failure."""
+    try:
+        payload = json.dumps({
+            "model": "gpt-image-1",
+            "prompt": prompt_text.format(w=w, h=h),
+            "size": "auto",
+            "output_format": "png",
+        }).encode()
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/images/generations",
+            data=payload,
+            headers={"Authorization": f"Bearer {api_key}",
+                     "Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            body = json.loads(resp.read().decode())
+        out_png.write_bytes(base64.b64decode(body["data"][0]["b64_json"]))
+        return True
+    except Exception:
+        return False
 
 
 def _selftest() -> int:
@@ -547,12 +809,42 @@ _generated_
     assert "Worth the fifteen minutes" in s["thread"], s["thread"]
 
     h = md_to_html_body(sample)
-    assert "<h1>" in h and "<h2>Agent skills (3)</h2>" in h, h[:200]
+    assert "<h1>" in h and 'id="sec-agent-skills-3"' in h, h[:200]
+    assert '<h2 id="sec-agent-skills-3">Agent skills (3)</h2>' in h, h[:300]
     assert "<strong>Nobody" in h, h[:400]                    # thread body captured
     assert '<a href="https://example.com/a">repo</a>' in h
     assert "<code>npm i -g foo</code>" in h
     assert "<li>" in h and "mattpocock/skills@tdd</strong>" in h
     assert "<em>Quiet Tuesday." in h
+
+    # article furniture: hook / facts / use / pull-quote / src / figure
+    assert '<p class="hook">Your agents get a real shell on Windows.</p>' in h, h
+    assert '<div class="facts">' in h and "823★" in h, h
+    assert '<p class="use">' in h and "default shell" in h, h
+    assert '<ul class="compact">' in h, h
+    fig = md_to_html_body("![a risograph terminal](assets/cover.png)")
+    assert '<figure><img src="assets/cover.png" alt="a risograph terminal">' in fig, fig
+    assert "<figcaption>" in fig, fig
+    # a bold-only quote is a pull-quote; a plain one stays an aside
+    assert md_to_html_body("> **Pull this.**").startswith('<blockquote class="pq">')
+    assert md_to_html_body("> just an aside").startswith("<blockquote>")
+
+    # the overview is the one TLDR-shaped part: one line per section, linked
+    _t, doc = build_document(sample, s, "Issue 1", "2026-10-09", {})
+    assert '<p class="kicker">Issue 1</p>' in doc
+    assert '<section class="overview">' in doc and "In this issue" in doc
+    assert '<a href="#sec-agent-skills">Agent skills</a>' in doc, doc[:2000]
+    assert "Your agents get a real shell on Windows." in doc
+    # the masthead owns the H1 and mood line; the body must not repeat them
+    assert doc.count("<h1>") == 1, doc.count("<h1>")
+    assert doc.count("Quiet Tuesday") == 1, doc.count("Quiet Tuesday")
+    # Thread renders once, as a section - never appended again as a colophon
+    assert doc.count("Thread of the day") == 1, doc.count("Thread of the day")
+    assert "colophon-block" not in doc
+    # comments never leak into the rendered document
+    assert "WHAT THIS FILE IS" not in _strip_front_matter(
+        "<!-- WHAT THIS FILE IS x -->\n# T\n_Quiet Tuesday._\n\n## A\nbody\n"
+    )
 
     # code spans must survive escaping, not be re-parsed as markdown
     assert md_to_html_body("`a **b**`").count("<code>") == 1
@@ -577,6 +869,11 @@ def main() -> int:
     ap.add_argument("--browser", default=None, help="auto|edge|chrome|chromium")
     ap.add_argument("--title", default=None, help="override the PDF document title")
     ap.add_argument("--footer", default="Daily Interest Digest")
+    ap.add_argument("--illustrate", action="store_true",
+                    help="generate one editorial illustration for the masthead "
+                         "(needs OPENAI_API_KEY; skipped silently without it)")
+    ap.add_argument("--il-width", type=int, default=1536)
+    ap.add_argument("--il-height", type=int, default=640)
     ap.add_argument("--json", action="store_true", help="machine-readable result")
     args = ap.parse_args()
 
@@ -616,11 +913,26 @@ def main() -> int:
 
         # ---- PDF ------------------------------------------------------- #
         if not args.no_pdf:
+            images: dict[str, Path] = {}
+            if args.illustrate:
+                key = os.environ.get("OPENAI_API_KEY")
+                if not key:
+                    result["warnings"].append(
+                        "--illustrate needs OPENAI_API_KEY; rendering without art."
+                    )
+                else:
+                    art = tmp / "cover.png"
+                    prompt = _ILLUSTRATION_PROMPT + "\n\nMood: " + (
+                        struct["mood"] or struct["title"] or "a day in AI tooling"
+                    )
+                    if generate_illustration(prompt, art, args.il_width, args.il_height, key):
+                        images["cover"] = art
+                    else:
+                        result["warnings"].append("illustration failed; rendering without art.")
+
+            title, doc = build_document(md, struct, issue_no(struct, date), date, images)
             doc_path = tmp / "digest.html"
-            doc_path.write_text(
-                wrap_document(args.title or struct["title"] or stem, md_to_html_body(md), DOC_CSS),
-                encoding="utf-8",
-            )
+            doc_path.write_text(doc, encoding="utf-8")
             target = outdir / f"{stem}.pdf"
             if binary:
                 # No --no-pdf-header-footer: this Edge build rejects the switch

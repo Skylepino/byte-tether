@@ -172,6 +172,22 @@ python tools\render_assets.py output\YYYY-MM-DD.md
 Writes `output/assets/`: one PDF of the whole digest, a cover card, and a card per
 category at 1200×630. Renders through a headless Edge/Chromium already on the machine.
 
+The PDF is laid out as an **article**, not a markdown dump: serif prose on a narrow
+measure, a masthead with an "In this issue" overview, pull-quotes, and label-value
+grids. Five pieces of markdown are recognised and given article treatment — use them
+and the PDF composes itself:
+
+| In the markdown | Renders as |
+|---|---|
+| The leading all-**bold** line of a section | a pull-quote |
+| `- **By:**` / `- **Plainly:**` / `- **TL;DR:**` | one label-value grid |
+| `**Use it for:**` | an accent-ruled callout |
+| A bare URL alone on a line | a small grey source reference |
+| `![alt](path)` | an illustration, full measure |
+
+Add `--illustrate` to generate one editorial illustration for the masthead. It needs
+`OPENAI_API_KEY`; without it the script warns and renders without art.
+
 **This step never publishes anything.** No dev.to, no API, no key, no network. The files
 land on disk and a human copies whatever they want onto wherever they post. If the
 browser is missing the script writes HTML and warns — it never fails the digest.

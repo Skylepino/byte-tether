@@ -28,6 +28,12 @@ Instead: read `example.md` and ask whether a fresh run would still resemble it.
    recency, release count, install command, platform. If you changed `repoFacts`, this
    is where you see whether the change landed. A missing license or an archive flag
    must be stated, not quietly dropped.
+1c. **Article furniture.** The PDF is laid out as an article, and it only composes if
+   the markdown uses the markup the renderer recognises: the leading all-**bold** line
+   of a section becomes a pull-quote, `**By:**`/`**Plainly:**`/`**TL;DR:**` become one
+   label-value grid, `**Use it for:**` becomes a callout, and a bare URL on its own
+   line becomes a source reference. If those look flat in `example.pdf`, the markup
+   changed, not the CSS.
 2. **No ranking.** Tier A items are *explained*, not *best*. If it reads like a "top 5",
    something got labelled that shouldn't be.
 3. **Author present.** Every in-depth item names who made it and links them.

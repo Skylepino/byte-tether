@@ -202,6 +202,30 @@ stdlib-only Python 3. Set `DIGEST_BROWSER` if you need to point it at a specific
 python tools\render_assets.py --selftest   # check the parser before trusting a render
 ```
 
+The PDF is laid out as an **article**, not a markdown dump: serif prose on a narrow
+measure, a masthead with a numbered "In this issue" overview, pull-quotes, and
+label-value grids. Five pieces of markdown are recognised and given article treatment,
+which is what lets the renderer compose itself:
+
+| Markup | Becomes |
+|---|---|
+| Leading all-**bold** line of a section | a pull-quote |
+| `- **By:**` / `- **Plainly:**` / `- **TL;DR:**` | a label-value grid |
+| `**Use it for:**` | an accent-ruled callout |
+| A bare URL alone on a line | a small grey source reference |
+| `![alt](path)` | an illustration, full measure |
+
+Add `--illustrate` for one generated editorial illustration under the masthead:
+
+```powershell
+python tools\render_assets.py output\2026-10-09.md --illustrate   # needs OPENAI_API_KEY
+```
+
+Illustrations are **generated, not fetched** — that keeps a render offline and means
+nothing in the PDF carries someone else's licence. Without the key the script warns and
+renders without art. It's opt-in per run; `assets.illustrations` in the config records
+the intent.
+
 ---
 
 ## How it works
