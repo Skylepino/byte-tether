@@ -72,10 +72,15 @@ Write-Output "Created: $($auto.id)"
 
 # Write the id back so tools\run-digest.ps1 and check-staleness.ps1 can find it.
 # Patch the id in place rather than re-serializing, so the hand-written
-# "$comment" keys and formatting in digest.json survive untouched.
+# "$comment" keys and formatting in digest.json survive untouched. The value may
+# be "", null, or a stale uuid - match all three.
 $text = Get-Content $configPath -Raw
-$text = $text -replace '("id"\s*:\s*)"[^"]*"', ('$1"' + $auto.id + '"')
-Set-Content -Path $configPath -Value $text -Encoding utf8
+$patched = $text -replace '("id"\s*:\s*)("[^"]*"|null)', ('$1"' + $auto.id + '"')
+if ($patched -eq $text) {
+    Write-Error 'Could not locate automation.id in config/digest.json. Nothing was written.'
+    exit 1
+}
+Set-Content -Path $configPath -Value $patched -Encoding utf8
 
 Write-Output "Wrote automation.id into config/digest.json"
 Write-Output ''
